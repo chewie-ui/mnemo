@@ -72,6 +72,21 @@ function writeLocal(decks) {
   localStorage.setItem(LOCAL_KEY, JSON.stringify(decks));
 }
 
+// Mauvaises réponses d'une carte : 5 maximum, sans vide, doublon ni copie de la bonne réponse.
+export function cleanWrong(list, back) {
+  const out = [];
+  for (const raw of Array.isArray(list) ? list : []) {
+    const t = String(raw ?? '').trim().slice(0, 500);
+    if (!t || t === back || out.includes(t)) continue;
+    out.push(t);
+    if (out.length === 5) break;
+  }
+  return out;
+}
+
+// Un quiz est possible si chaque carte peut avoir au moins deux propositions.
+export const quizReady = (deck) => deck.cards >= 4 || (deck.cards >= 2 && deck.qcm > 0) || (deck.cards >= 1 && deck.qcm === deck.cards);
+
 const newId = () => `l${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 const localStore = {
@@ -79,7 +94,7 @@ const localStore = {
     const now = nowSql();
     return readLocal().map((d) => ({
       id: d.id, title: d.title, description: d.description, updatedAt: d.updatedAt,
-      cards: d.cards.length, due: d.cards.filter((c) => isDue(c, now)).length,
+      cards: d.cards.length, due: d.cards.filter((c) => isDue(c, now)).length, qcm: d.cards.filter((c) => c.wrong?.length).length,
     }));
   },
   async get(id) {
@@ -94,7 +109,7 @@ const localStore = {
       .filter((c) => c.front.trim() && c.back.trim())
       .map((c) => {
         const prev = existing?.cards.find((p) => p.id === c.id);
-        return { id: prev?.id ?? newId(), front: c.front.trim(), back: c.back.trim(), dueAt: prev?.dueAt ?? null, intervalDays: prev?.intervalDays ?? 0, ease: prev?.ease ?? 2.5, reps: prev?.reps ?? 0 };
+        return { id: prev?.id ?? newId(), front: c.front.trim(), back: c.back.trim(), wrong: cleanWrong(c.wrong, c.back.trim()), dueAt: prev?.dueAt ?? null, intervalDays: prev?.intervalDays ?? 0, ease: prev?.ease ?? 2.5, reps: prev?.reps ?? 0 };
       });
     const deck = { id: existing?.id ?? newId(), title: input.title.trim(), description: (input.description ?? '').trim(), updatedAt: nowSql(), cards };
     const next = existing ? decks.map((d) => (d.id === deck.id ? deck : d)) : [deck, ...decks];
@@ -138,6 +153,6 @@ export const SAMPLE_DECK = {
     { front: 'Prise de la Bastille', back: '14 juillet 1789' },
     { front: 'Sacre de Napoléon', back: '2 décembre 1804' },
     { front: 'Armistice de la Première Guerre mondiale', back: '11 novembre 1918' },
-    { front: 'Droit de vote des femmes en France', back: '1944' },
+    { front: 'Droit de vote des femmes en France', back: '1944', wrong: ['1936', '1958'] },
   ],
 };

@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS cards (
   deck_id INT UNSIGNED NOT NULL,
   front TEXT NOT NULL,
   back TEXT NOT NULL,
+  choices TEXT NULL, -- mauvaises réponses du QCM (JSON), NULL si aucune
   position SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   -- Révision espacée
   due_at DATETIME NULL,

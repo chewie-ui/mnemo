@@ -1,5 +1,5 @@
 // Écrans des mémos : liste des leçons, éditeur, révision (cartes) et quiz (QCM).
-import { store, isDue, schedule, previewInterval, GRADES, SAMPLE_DECK, hasLocalDecks } from './memos.js';
+import { store, isDue, schedule, previewInterval, GRADES, SAMPLE_DECK, hasLocalDecks, cleanWrong, quizReady } from './memos.js';
 import { currentUser } from './auth.js';
 import { ApiError } from './api.js';
 import { $, refreshIcons, escapeHtml, toast, setLoading } from './ui.js';
@@ -30,10 +30,10 @@ export async function renderMemosList() {
     card.innerHTML = `
       <h3 class="name">${escapeHtml(deck.title)}</h3>
       ${deck.description ? `<p class="desc">${escapeHtml(deck.description)}</p>` : ''}
-      <p class="deck-meta"><span>${deck.cards} carte${deck.cards > 1 ? 's' : ''}</span>${deck.due ? `<span class="due">${deck.due} à réviser</span>` : '<span>Rien à réviser pour l’instant</span>'}</p>
+      <p class="deck-meta"><span>${deck.cards} carte${deck.cards > 1 ? 's' : ''}${deck.qcm ? ` · ${deck.qcm} QCM` : ''}</span>${deck.due ? `<span class="due">${deck.due} à réviser</span>` : '<span>Rien à réviser pour l’instant</span>'}</p>
       <div class="actions">
         <a class="btn btn-primary" href="#/study/${deck.id}"><i data-lucide="book-open" aria-hidden="true"></i><span>Réviser</span></a>
-        <a class="btn btn-ghost" href="#/quiz/${deck.id}" ${deck.cards < 4 ? 'aria-disabled="true" title="Il faut au moins 4 cartes pour un quiz"' : ''}><i data-lucide="list-checks" aria-hidden="true"></i><span>Quiz</span></a>
+        <a class="btn btn-ghost" href="#/quiz/${deck.id}" ${quizReady(deck) ? '' : 'aria-disabled="true" title="Il faut au moins 4 cartes, ou des mauvaises réponses sur chaque carte, pour un quiz"'}><i data-lucide="list-checks" aria-hidden="true"></i><span>Quiz</span></a>
         <a class="btn btn-ghost" href="#/memos/${deck.id}"><i data-lucide="pencil" aria-hidden="true"></i><span>Modifier</span></a>
       </div>`;
     list.appendChild(card);
@@ -100,9 +100,59 @@ function addCardRow(card = {}) {
     <span class="index" aria-hidden="true"></span>
     <input type="text" class="front-input" maxlength="2000" placeholder="Question ou terme" aria-label="Question" />
     <input type="text" class="back-input" maxlength="2000" placeholder="Réponse ou définition" aria-label="Réponse" />
-    <button type="button" class="btn btn-icon btn-icon-plain remove" aria-label="Supprimer cette carte"><i data-lucide="trash-2" aria-hidden="true"></i></button>`;
+    <button type="button" class="btn btn-icon btn-icon-plain remove" aria-label="Supprimer cette carte"><i data-lucide="trash-2" aria-hidden="true"></i></button>
+    <div class="card-extra">
+      <button type="button" class="btn btn-ghost btn-sm toggle-wrong" aria-expanded="false"><i data-lucide="list-checks" aria-hidden="true"></i><span>Mauvaises réponses (QCM)</span><span class="wrong-count"></span></button>
+      <div class="wrong-box" hidden>
+        <p class="note small">Propositions fausses affichées dans le quiz à côté de la bonne réponse. Sans elles, le quiz pioche dans les réponses des autres cartes.</p>
+        <div class="wrong-rows"></div>
+        <button type="button" class="btn btn-ghost btn-sm add-wrong"><i data-lucide="plus" aria-hidden="true"></i><span>Ajouter une mauvaise réponse</span></button>
+      </div>
+    </div>`;
   row.querySelector('.front-input').value = card.front ?? '';
   row.querySelector('.back-input').value = card.back ?? '';
+  const wrongBox = row.querySelector('.wrong-box');
+  const wrongRows = row.querySelector('.wrong-rows');
+  const toggle = row.querySelector('.toggle-wrong');
+  const addWrong = (value = '') => {
+    if (wrongRows.children.length >= 5) return;
+    const line = document.createElement('div');
+    line.className = 'wrong-row';
+    line.innerHTML = `
+      <input type="text" class="wrong-input" maxlength="500" placeholder="Mauvaise réponse" aria-label="Mauvaise réponse" />
+      <button type="button" class="btn btn-icon btn-icon-plain remove-wrong" aria-label="Retirer cette mauvaise réponse"><i data-lucide="x" aria-hidden="true"></i></button>`;
+    line.querySelector('.wrong-input').value = value;
+    line.querySelector('.remove-wrong').addEventListener('click', () => {
+      line.remove();
+      updateCount();
+    });
+    // Entrée : mauvaise réponse suivante (créée si besoin), comme pour les cartes.
+    line.querySelector('.wrong-input').addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      if (line === wrongRows.lastElementChild && wrongRows.children.length < 5) {
+        addWrong();
+        refreshIcons();
+      }
+      line.nextElementSibling?.querySelector('.wrong-input').focus();
+    });
+    wrongRows.appendChild(line);
+    row.querySelector('.add-wrong').hidden = wrongRows.children.length >= 5;
+  };
+  for (const w of card.wrong ?? []) addWrong(w);
+  toggle.addEventListener('click', () => {
+    const open = wrongBox.hidden;
+    wrongBox.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+    if (open && !wrongRows.children.length) addWrong();
+    refreshIcons();
+    if (open) wrongRows.lastElementChild?.querySelector('.wrong-input').focus();
+  });
+  row.querySelector('.add-wrong').addEventListener('click', () => {
+    addWrong();
+    refreshIcons();
+    wrongRows.lastElementChild.querySelector('.wrong-input').focus();
+  });
   row.querySelector('.remove').addEventListener('click', () => {
     row.remove();
     if (!rows.children.length) addCardRow();
@@ -123,7 +173,12 @@ function addCardRow(card = {}) {
 
 function updateCount() {
   const rows = [...$('deck-cards').children];
-  rows.forEach((row, i) => (row.querySelector('.index').textContent = String(i + 1)));
+  rows.forEach((row, i) => {
+    row.querySelector('.index').textContent = String(i + 1);
+    const n = [...row.querySelectorAll('.wrong-input')].filter((w) => w.value.trim()).length;
+    row.querySelector('.wrong-count').textContent = n ? `(${n})` : '';
+    row.querySelector('.add-wrong').hidden = row.querySelectorAll('.wrong-row').length >= 5;
+  });
   const filled = rows.filter((r) => r.querySelector('.front-input').value.trim() && r.querySelector('.back-input').value.trim()).length;
   $('deck-count').textContent = filled ? `(${filled})` : '';
 }
@@ -133,6 +188,7 @@ function readForm() {
     id: row.dataset.id || undefined,
     front: row.querySelector('.front-input').value,
     back: row.querySelector('.back-input').value,
+    wrong: cleanWrong([...row.querySelectorAll('.wrong-input')].map((w) => w.value), row.querySelector('.back-input').value.trim()),
   }));
   return { id: editing?.id, title: $('deck-title').value, description: $('deck-description').value, cards };
 }
@@ -217,8 +273,9 @@ export async function renderStudy(id, kind) {
   $('study-back').href = '#/memos';
 
   if (kind === 'quiz') {
-    if (deck.cards.length < 4) {
-      body.innerHTML = `<div class="empty-state"><h2>Pas encore de quiz</h2><p>Il faut au moins 4 cartes pour proposer des choix. Cette leçon en a ${deck.cards.length}.</p><div class="hero-actions"><a class="btn btn-primary" href="#/memos/${deck.id}"><i data-lucide="pencil" aria-hidden="true"></i><span>Ajouter des cartes</span></a></div></div>`;
+    const summary = { cards: deck.cards.length, qcm: deck.cards.filter((c) => c.wrong?.length).length };
+    if (!quizReady(summary)) {
+      body.innerHTML = `<div class="empty-state"><h2>Pas encore de quiz</h2><p>Il faut au moins 4 cartes pour proposer des choix, ou des mauvaises réponses sur chaque carte. Cette leçon en a ${deck.cards.length}.</p><div class="hero-actions"><a class="btn btn-primary" href="#/memos/${deck.id}"><i data-lucide="pencil" aria-hidden="true"></i><span>Ajouter des cartes</span></a></div></div>`;
       refreshIcons();
       return;
     }
@@ -309,8 +366,17 @@ function nextQuiz() {
   const card = s.queue.shift();
   if (!card) return renderSummary();
 
-  const others = shuffle(s.deck.cards.filter((c) => c.id !== card.id && c.back !== card.back)).slice(0, 3);
-  const choices = shuffle([card, ...others]);
+  // Propositions : les mauvaises réponses de la carte d'abord, complétées par celles des autres cartes jusqu'à 4.
+  const wrong = (card.wrong ?? []).map((text, i) => ({ id: `w${i}`, back: text }));
+  const taken = new Set([card.back, ...wrong.map((w) => w.back)]);
+  const others = [];
+  for (const c of shuffle(s.deck.cards)) {
+    if (wrong.length + others.length >= 3) break;
+    if (c.id === card.id || taken.has(c.back)) continue;
+    taken.add(c.back);
+    others.push(c);
+  }
+  const choices = shuffle([card, ...wrong, ...others]);
   body.innerHTML = `
     <div class="flashcard">
       <p class="side-label">Question</p>

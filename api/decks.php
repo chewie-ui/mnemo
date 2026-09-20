@@ -5,6 +5,29 @@ require __DIR__ . '/_bootstrap.php';
 
 $uid = requireUser();
 
+// Colonne « choices » (mauvaises réponses du QCM, JSON) ajoutée après coup :
+// on la crée à la volée sur les bases existantes, SQLite comme MySQL.
+function ensureChoicesColumn(): void {
+  try {
+    db()->query('SELECT choices FROM cards LIMIT 1');
+  } catch (PDOException) {
+    db()->exec('ALTER TABLE cards ADD COLUMN choices TEXT NULL');
+  }
+}
+ensureChoicesColumn();
+
+// Liste de mauvaises réponses nettoyée : 5 maximum, 500 caractères chacune, sans doublon ni vide.
+function cleanChoices(mixed $raw, string $back): array {
+  $out = [];
+  foreach (is_array($raw) ? $raw : [] as $c) {
+    $t = text(is_string($c) ? $c : '', 500);
+    if ($t === '' || $t === $back || in_array($t, $out, true)) continue;
+    $out[] = $t;
+    if (count($out) === 5) break;
+  }
+  return $out;
+}
+
 function ownedDeck(int $uid, int $id): array {
   $stmt = db()->prepare('SELECT id, title, description, created_at, updated_at FROM decks WHERE id = ? AND user_id = ?');
   $stmt->execute([$id, $uid]);
@@ -16,6 +39,7 @@ function ownedDeck(int $uid, int $id): array {
 function cardRow(array $r): array {
   return [
     'id' => (int) $r['id'], 'front' => $r['front'], 'back' => $r['back'],
+    'wrong' => $r['choices'] ? (json_decode($r['choices'], true) ?: []) : [],
     'dueAt' => $r['due_at'], 'intervalDays' => (float) $r['interval_days'], 'ease' => (float) $r['ease'], 'reps' => (int) $r['reps'],
   ];
 }
@@ -34,12 +58,13 @@ switch (action()) {
   case 'list': {
     $stmt = db()->prepare('SELECT d.id, d.title, d.description, d.updated_at,
         (SELECT COUNT(*) FROM cards c WHERE c.deck_id = d.id) AS cards,
-        (SELECT COUNT(*) FROM cards c WHERE c.deck_id = d.id AND (c.due_at IS NULL OR c.due_at <= ?)) AS due
+        (SELECT COUNT(*) FROM cards c WHERE c.deck_id = d.id AND (c.due_at IS NULL OR c.due_at <= ?)) AS due,
+        (SELECT COUNT(*) FROM cards c WHERE c.deck_id = d.id AND c.choices IS NOT NULL) AS qcm
       FROM decks d WHERE d.user_id = ? ORDER BY d.updated_at DESC');
     $stmt->execute([gmdate('Y-m-d H:i:s'), $uid]);
     ok(['decks' => array_map(fn($r) => [
       'id' => (int) $r['id'], 'title' => $r['title'], 'description' => $r['description'],
-      'updatedAt' => $r['updated_at'], 'cards' => (int) $r['cards'], 'due' => (int) $r['due'],
+      'updatedAt' => $r['updated_at'], 'cards' => (int) $r['cards'], 'due' => (int) $r['due'], 'qcm' => (int) $r['qcm'],
     ], $stmt->fetchAll())]);
   }
 
@@ -68,19 +93,21 @@ switch (action()) {
       $id = (int) $db->lastInsertId();
     }
     $keep = [];
-    $update = $db->prepare('UPDATE cards SET front = ?, back = ?, position = ? WHERE id = ? AND deck_id = ?');
-    $insert = $db->prepare('INSERT INTO cards (deck_id, front, back, position) VALUES (?, ?, ?, ?)');
+    $update = $db->prepare('UPDATE cards SET front = ?, back = ?, choices = ?, position = ? WHERE id = ? AND deck_id = ?');
+    $insert = $db->prepare('INSERT INTO cards (deck_id, front, back, choices, position) VALUES (?, ?, ?, ?, ?)');
     foreach (array_values($cards) as $i => $card) {
       $front = text($card['front'] ?? '', 2000);
       $back = text($card['back'] ?? '', 2000);
       if ($front === '' || $back === '') continue;
+      $wrong = cleanChoices($card['wrong'] ?? null, $back);
+      $choices = $wrong ? json_encode($wrong, JSON_UNESCAPED_UNICODE) : null;
       $cardId = (int) ($card['id'] ?? 0);
       if ($cardId) {
-        $update->execute([$front, $back, $i, $cardId, $id]);
+        $update->execute([$front, $back, $choices, $i, $cardId, $id]);
         if ($update->rowCount() === 0) $cardId = 0;
       }
       if (!$cardId) {
-        $insert->execute([$id, $front, $back, $i]);
+        $insert->execute([$id, $front, $back, $choices, $i]);
         $cardId = (int) $db->lastInsertId();
       }
       $keep[] = $cardId;

@@ -98,7 +98,8 @@ async function boot() {
   initAccount();
   initFriends();
   window.addEventListener('hashchange', route);
-  route();
+  // Les pages qui lisent une leçon attendent de savoir qui est connecté (stockage local ou serveur).
+  if (!/^#\/(memos|study|quiz)\//.test(location.hash)) route();
   // Le compte se charge en arrière-plan ; l'accueil se rafraîchit quand on sait qui joue.
   await loadUser();
   await refreshServerBests();

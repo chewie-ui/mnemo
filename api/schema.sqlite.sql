@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS cards (
   deck_id INTEGER NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
   front TEXT NOT NULL,
   back TEXT NOT NULL,
+  choices TEXT NULL, -- mauvaises réponses du QCM (JSON), NULL si aucune
   position INTEGER NOT NULL DEFAULT 0,
   due_at TEXT NULL,
   interval_days REAL NOT NULL DEFAULT 0,
