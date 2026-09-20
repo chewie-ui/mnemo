@@ -1,0 +1,8 @@
+node_modules
+dist
+# Secrets et donnees locales
+.env
+api/.env
+api/data/
+# Donnees brutes (~50 Mo), voir README pour les retelecharger
+raw

@@ -1,0 +1,6 @@
+# Infomaniak (Apache) : chaque fichier .php est un point d'entree, rien a reecrire.
+# On empeche seulement la lecture directe des fichiers sensibles.
+<FilesMatch "^(\.env|config\.php|_bootstrap\.php|schema\..*\.sql)$">
+  Require all denied
+</FilesMatch>
+Options -Indexes

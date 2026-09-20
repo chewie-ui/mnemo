@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Apprends en jouant : géographie, histoire, pays en détail, et tes propres leçons en cartes mémo." />
+    <title>Mnemo — Apprendre en jouant</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner container">
+      <a class="brand" href="#/" aria-label="Accueil Mnemo">
+        <i data-lucide="globe" aria-hidden="true"></i>
+        <span>Mnemo</span>
+      </a>
+      <nav class="topnav" aria-label="Sections">
+        <a href="#/#geo">Géographie</a>
+        <a href="#/#histoire">Histoire</a>
+        <a href="#/#pays">Pays en détail</a>
+        <a href="#/memos">Mes mémos</a>
+        <a href="#/amis">Amis</a>
+      </nav>
+      <div class="user-area">
+        <button id="user-btn" class="btn btn-ghost user-btn" type="button" aria-haspopup="menu" aria-expanded="false">
+          <i data-lucide="circle-user-round" aria-hidden="true"></i>
+          <span id="user-label">Se connecter</span>
+        </button>
+        <div id="user-menu" class="menu" role="menu" hidden>
+          <a class="menu-item" role="menuitem" href="#/stats"><i data-lucide="bar-chart-3" aria-hidden="true"></i><span>Mes stats</span></a>
+          <a class="menu-item" role="menuitem" href="#/memos"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Mes mémos</span></a>
+          <a class="menu-item" role="menuitem" href="#/amis"><i data-lucide="users" aria-hidden="true"></i><span>Amis et défis</span></a>
+          <button id="logout-btn" class="menu-item" role="menuitem" type="button"><i data-lucide="log-out" aria-hidden="true"></i><span>Se déconnecter</span></button>
+        </div>
+      </div>
+      </div>
+    </header>
+
+    <!-- Accueil -->
+    <main id="screen-home" class="screen container">
+      <section class="hero">
+        <h1>Apprends en jouant</h1>
+        <p class="lead">Des cartes muettes pour la géographie et l'histoire, et tes propres leçons en cartes mémo. Trois essais par question, un chrono, et tes progrès enregistrés.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#/#geo"><i data-lucide="play" aria-hidden="true"></i><span>Commencer à apprendre</span></a>
+          <a class="btn btn-ghost" href="#/memos"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Créer une leçon</span></a>
+        </div>
+      </section>
+
+      <h2 id="geo" class="section-title"><i data-lucide="globe" aria-hidden="true"></i><span>Géographie</span></h2>
+      <p class="section-note">Pays, drapeaux, capitales, grandes villes, fleuves, mers et océans — sur chaque carte.</p>
+      <div id="region-grid" class="region-grid" role="list"></div>
+
+      <h2 id="histoire" class="section-title"><i data-lucide="landmark" aria-hidden="true"></i><span>Histoire</span></h2>
+      <p class="section-note">Les États tels qu'ils étaient à une époque donnée. Frontières approximatives (source : historical-basemaps), pour apprendre, pas pour trancher un débat.</p>
+      <div id="history-grid" class="region-grid" role="list"></div>
+
+      <h2 id="pays" class="section-title"><i data-lucide="map-pinned" aria-hidden="true"></i><span>Pays en détail</span></h2>
+      <p class="section-note">États, provinces, départements, cantons… de plus de 170 pays. Tape un nom de pays pour filtrer.</p>
+      <div class="search">
+        <label for="country-search" class="visually-hidden">Rechercher un pays</label>
+        <i data-lucide="search" aria-hidden="true"></i>
+        <input id="country-search" type="search" placeholder="Rechercher un pays (Brésil, Belgique, Japon…)" autocomplete="off" />
+      </div>
+      <div id="subdivision-grid" class="region-grid region-grid-compact" role="list"></div>
+      <p id="subdivision-empty" class="empty" hidden>Aucun pays ne correspond.</p>
+
+      <h2 id="memos" class="section-title"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Mes mémos</span></h2>
+      <p class="section-note">Tes propres leçons : une définition, une date, un article de loi… en cartes question → réponse, révisées au bon moment.</p>
+      <div id="home-memos" class="region-grid" role="list"></div>
+
+      <footer class="sources">
+        <p>Données cartographiques : <a href="https://www.naturalearthdata.com/" rel="noopener">Natural Earth</a> (domaine public) pour les pays, subdivisions, fleuves, mers et océans ; <a href="https://github.com/aourednik/historical-basemaps" rel="noopener">historical-basemaps</a> (GPL-3.0) pour les frontières historiques ; <a href="https://github.com/lipis/flag-icons" rel="noopener">flag-icons</a> (MIT) pour les drapeaux.</p>
+      </footer>
+    </main>
+
+    <!-- Partie en cours -->
+    <main id="screen-game" class="screen game" hidden>
+      <div class="game-bar">
+        <button id="btn-quit" class="btn btn-ghost" type="button">
+          <i data-lucide="arrow-left" aria-hidden="true"></i>
+          <span>Quitter</span>
+        </button>
+        <div class="prompt" aria-live="polite">
+          <span class="prompt-label">Trouve</span>
+          <img id="prompt-flag" class="prompt-flag" alt="Drapeau à retrouver" hidden />
+          <strong id="prompt-name">…</strong>
+          <span id="feedback" class="feedback" role="status"></span>
+        </div>
+        <dl class="hud">
+          <div id="hud-rival" class="hud-rival" hidden><dt id="hud-rival-name">Adversaire</dt><dd id="hud-rival-progress">—</dd></div>
+          <div><dt>Progression</dt><dd id="hud-progress">0 / 0</dd></div>
+          <div><dt>Erreurs</dt><dd id="hud-errors">0</dd></div>
+          <div><dt>Temps</dt><dd id="hud-time">0:00</dd></div>
+        </dl>
+      </div>
+
+      <div class="map-wrap">
+        <div id="map-loading" class="map-loading" role="status">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Chargement de la carte…</span>
+        </div>
+        <svg id="map" class="map" role="img" aria-label="Carte muette"></svg>
+        <div id="map-tip" class="map-tip" role="status" hidden></div>
+        <div class="zoom-controls">
+          <button id="zoom-in" class="btn btn-icon" type="button" aria-label="Zoomer"><i data-lucide="plus" aria-hidden="true"></i></button>
+          <button id="zoom-out" class="btn btn-icon" type="button" aria-label="Dézoomer"><i data-lucide="minus" aria-hidden="true"></i></button>
+          <button id="zoom-reset" class="btn btn-icon" type="button" aria-label="Réinitialiser le zoom"><i data-lucide="maximize" aria-hidden="true"></i></button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Mes stats -->
+    <main id="screen-stats" class="screen container page" hidden>
+      <div class="page-head">
+        <a class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1>Mes stats</h1>
+      </div>
+      <div id="stats-body"></div>
+    </main>
+
+    <!-- Mes mémos : liste des leçons -->
+    <main id="screen-memos" class="screen container page" hidden>
+      <div class="page-head">
+        <a class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1>Mes mémos</h1>
+        <a class="btn btn-primary page-action" href="#/memos/new"><i data-lucide="plus" aria-hidden="true"></i><span>Nouvelle leçon</span></a>
+      </div>
+      <p id="memos-note" class="note" hidden></p>
+      <div id="memos-list" class="region-grid" role="list"></div>
+      <div id="memos-empty" class="empty-state" hidden>
+        <h2>Aucune leçon pour l'instant</h2>
+        <p>Une leçon, c'est une liste de cartes question → réponse : une définition, une date, un article de loi, un mot de vocabulaire… Tu la révises ensuite au bon moment.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#/memos/new"><i data-lucide="plus" aria-hidden="true"></i><span>Créer ma première leçon</span></a>
+          <button id="memos-sample" class="btn btn-ghost" type="button">Ajouter une leçon d'exemple</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Éditeur de leçon -->
+    <main id="screen-deck" class="screen container page" hidden>
+      <div class="page-head">
+        <a class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Mes mémos</span></a>
+        <h1 id="deck-heading">Nouvelle leçon</h1>
+      </div>
+      <form id="deck-form" class="deck-form" novalidate>
+        <div class="field">
+          <label for="deck-title">Titre</label>
+          <input id="deck-title" type="text" maxlength="120" required placeholder="Droit civil — définitions" />
+        </div>
+        <div class="field">
+          <label for="deck-description">Description <span class="muted">(facultatif)</span></label>
+          <input id="deck-description" type="text" maxlength="500" placeholder="Chapitre 3, à savoir pour le partiel" />
+        </div>
+        <h2 class="cards-title">Cartes <span id="deck-count" class="muted"></span></h2>
+        <p class="note">À gauche la question (ou le terme), à droite la réponse (ou la définition). Les cartes vides sont ignorées.</p>
+        <div id="deck-cards" class="card-rows"></div>
+        <div class="deck-actions">
+          <button id="deck-add" class="btn btn-ghost" type="button"><i data-lucide="plus" aria-hidden="true"></i><span>Ajouter une carte</span></button>
+        </div>
+        <p id="deck-error" class="form-error" role="alert" hidden></p>
+        <div class="deck-footer">
+          <button id="deck-save" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Enregistrer</span></button>
+          <button id="deck-delete" class="btn btn-danger" type="button" hidden><i data-lucide="trash-2" aria-hidden="true"></i><span>Supprimer la leçon</span></button>
+        </div>
+      </form>
+    </main>
+
+    <!-- Révision (cartes) et quiz (QCM) -->
+    <main id="screen-study" class="screen container page study" hidden>
+      <div class="page-head">
+        <a id="study-back" class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Mes mémos</span></a>
+        <h1 id="study-title">Révision</h1>
+        <span id="study-progress" class="study-progress muted"></span>
+      </div>
+      <div id="study-body"></div>
+    </main>
+
+    <!-- Amis, défis, classement -->
+    <main id="screen-friends" class="screen container page" hidden>
+      <div class="page-head">
+        <a class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1>Amis et défis</h1>
+      </div>
+      <div id="friends-body"></div>
+    </main>
+
+    <!-- Choix de la carte pour un défi -->
+    <div id="challenge-modal" class="modal-backdrop" hidden>
+      <section class="modal modal-auth" role="dialog" aria-modal="true" aria-labelledby="challenge-title">
+        <div class="modal-head">
+          <h2 id="challenge-title">Défier</h2>
+          <button id="challenge-close" class="btn btn-icon btn-icon-plain" type="button" aria-label="Fermer"><i data-lucide="x" aria-hidden="true"></i></button>
+        </div>
+        <p class="note">Vous jouerez tous les deux la même partie, dans le même ordre. Le meilleur score gagne, le temps départage.</p>
+        <form id="challenge-form" novalidate>
+          <div class="field">
+            <label for="challenge-region">Carte</label>
+            <select id="challenge-region"></select>
+          </div>
+          <div class="field">
+            <label for="challenge-mode">Mode</label>
+            <select id="challenge-mode"></select>
+          </div>
+          <p id="challenge-error" class="form-error" role="alert" hidden></p>
+          <button id="challenge-submit" class="btn btn-primary btn-block" type="submit"><i data-lucide="swords" aria-hidden="true"></i><span>Lancer le défi</span></button>
+        </form>
+      </section>
+    </div>
+
+    <!-- Fin de partie (cartes) -->
+    <div id="results" class="modal-backdrop" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="results-title">
+        <h2 id="results-title">Partie terminée</h2>
+        <p id="results-region" class="muted"></p>
+        <div class="stat-row">
+          <div class="stat"><span class="stat-value" id="res-score">0 %</span><span class="stat-label">du premier coup</span></div>
+          <div class="stat"><span class="stat-value" id="res-time">0:00</span><span class="stat-label">temps</span></div>
+          <div class="stat"><span class="stat-value" id="res-errors">0</span><span class="stat-label">erreurs</span></div>
+        </div>
+        <p id="res-best" class="best"></p>
+        <p id="res-duel" class="duel-result" hidden></p>
+        <p id="res-saved" class="muted small" hidden></p>
+        <div id="res-missed-wrap">
+          <h3>À revoir</h3>
+          <ul id="res-missed" class="missed"></ul>
+        </div>
+        <div class="modal-actions">
+          <button id="btn-replay" class="btn btn-primary" type="button">
+            <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+            <span>Rejouer</span>
+          </button>
+          <button id="btn-home" class="btn btn-ghost" type="button">Changer de carte</button>
+          <button id="btn-duels" class="btn btn-ghost" type="button" hidden>Mes défis</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- Connexion / inscription -->
+    <div id="auth-modal" class="modal-backdrop" hidden>
+      <section class="modal modal-auth" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+        <div class="modal-head">
+          <h2 id="auth-title">Se connecter</h2>
+          <button id="auth-close" class="btn btn-icon btn-icon-plain" type="button" aria-label="Fermer"><i data-lucide="x" aria-hidden="true"></i></button>
+        </div>
+        <div class="tabs" role="tablist">
+          <button id="tab-login" class="tab" role="tab" type="button" aria-selected="true">Connexion</button>
+          <button id="tab-register" class="tab" role="tab" type="button" aria-selected="false">Créer un compte</button>
+        </div>
+        <p class="note">Le compte est facultatif : il sert à retrouver tes stats et tes mémos sur tous tes appareils.</p>
+        <form id="auth-form" class="auth-form" novalidate>
+          <div class="field" id="auth-name-field" hidden>
+            <label for="auth-name">Pseudo</label>
+            <input id="auth-name" type="text" autocomplete="nickname" maxlength="60" />
+          </div>
+          <div class="field">
+            <label for="auth-email">Adresse e-mail</label>
+            <input id="auth-email" type="email" autocomplete="email" required />
+          </div>
+          <div class="field">
+            <label for="auth-password">Mot de passe <span id="auth-password-hint" class="muted" hidden>(8 caractères minimum)</span></label>
+            <input id="auth-password" type="password" autocomplete="current-password" required minlength="8" />
+          </div>
+          <p id="auth-error" class="form-error" role="alert" hidden></p>
+          <button id="auth-submit" class="btn btn-primary btn-block" type="submit"><span>Se connecter</span></button>
+        </form>
+      </section>
+    </div>
+
+    <div id="toast" class="toast" role="status" hidden></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

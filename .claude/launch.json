@@ -1,0 +1,27 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mnemo-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "mnemo-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "api"
+      ],
+      "port": 8080
+    }
+  ]
+}

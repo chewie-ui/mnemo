@@ -1,0 +1,35 @@
+{
+  "name": "mnemo",
+  "version": "1.0.0",
+  "description": "Apprendre en jouant : cartes muettes et quiz",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "data": "node scripts/build-data.mjs",
+    "api": "php -d extension=pdo_sqlite -d extension=pdo_mysql -d extension=mbstring -S 127.0.0.1:8080 -t .",
+    "package": "node scripts/package.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "d3-geo": "^3.1.1",
+    "d3-selection": "^3.0.0",
+    "d3-zoom": "^3.0.0",
+    "flag-icons": "^7.5.0",
+    "lucide": "^1.47.0",
+    "topojson-client": "^3.1.0",
+    "us-atlas": "^3.0.1",
+    "world-atlas": "^2.0.2"
+  },
+  "devDependencies": {
+    "d3-polygon": "^3.0.1",
+    "polygon-clipping": "^0.15.7",
+    "topojson-server": "^3.0.1",
+    "topojson-simplify": "^3.0.3",
+    "vite": "^8.3.0"
+  },
+  "private": true
+}
