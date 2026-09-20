@@ -16,7 +16,7 @@ npm run api    # API PHP sur http://127.0.0.1:8080 (PHP 8.1+ requis) — SQLite 
 npm run dev    # site sur http://localhost:5173, /api renvoyé vers PHP
 ```
 
-La configuration vient d'un fichier `.env` (voir `.env.example`), jamais versionné. Sans `.env`, l'API utilise SQLite dans `api/data/`.
+La configuration vient d'un fichier `.env` (voir `.env.example`), jamais versionné. Sans `.env`, l'API utilise SQLite dans `api/data/` — en local, ne crée donc pas de `.env` tant que tu n'as pas de vraie base MySQL (un `.env` avec les valeurs d'exemple casse l'API).
 
 Sans l'API, le site fonctionne quand même : comptes désactivés, scores et mémos restent dans le navigateur.
 

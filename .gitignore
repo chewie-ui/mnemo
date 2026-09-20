@@ -6,3 +6,5 @@ api/.env
 api/data/
 # Donnees brutes (~50 Mo), voir README pour les retelecharger
 raw
+.env.*
+!.env.example

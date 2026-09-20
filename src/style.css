@@ -766,7 +766,52 @@ p {
   fill: #dfe6ea;
 }
 
-.micro,
+/* Repère déporté d'une petite île : trait + cercle cliquable. */
+.micro {
+  cursor: pointer;
+}
+
+.micro .leader {
+  stroke: #3d4a55;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.micro circle {
+  fill: var(--land-target);
+  stroke: #3d4a55;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  transition: fill 150ms ease;
+}
+
+.micro:not([data-state]):hover circle {
+  fill: #dfe6ea;
+}
+
+.micro[data-state='correct-1'] circle {
+  fill: var(--state-correct-1);
+}
+
+.micro[data-state='correct-2'] circle {
+  fill: var(--state-correct-2);
+}
+
+.micro[data-state='correct-3'] circle {
+  fill: var(--state-correct-3);
+}
+
+.micro[data-state='failed'] circle,
+.micro.flash circle {
+  fill: var(--state-failed);
+}
+
+.micro[data-state='reveal'] circle {
+  stroke: var(--state-failed);
+  animation: reveal-blink 600ms ease-in-out infinite alternate;
+}
+
 .city {
   stroke: #3d4a55;
   stroke-width: 1.5;

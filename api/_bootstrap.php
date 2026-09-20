@@ -4,7 +4,12 @@
 
 declare(strict_types=1);
 
-$config = require __DIR__ . '/config.php';
+// Lu une seule fois par requête (config.php déclare des fonctions : pas de double require).
+function config(): array {
+  static $config = null;
+  return $config ??= require __DIR__ . '/config.php';
+}
+$config = config();
 
 // ─── Session (cookie HttpOnly, SameSite=Lax : le navigateur ne l'envoie pas depuis un autre site) ───
 session_set_cookie_params([
@@ -32,7 +37,7 @@ if (!empty($config['origin']) && !empty($_SERVER['HTTP_ORIGIN']) && $_SERVER['HT
 function db(): PDO {
   static $pdo = null;
   if ($pdo) return $pdo;
-  $config = require __DIR__ . '/config.php';
+  $config = config();
   $pdo = new PDO($config['dsn'], $config['user'], $config['password'], [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

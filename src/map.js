@@ -12,7 +12,10 @@ const PAD = 16;
 const MICRO_AREA = 60; // surface projetée (px²) en dessous de laquelle on ajoute un marqueur cliquable
 // Sur écran tactile, les ronds sont plus gros : on vise au doigt, pas au curseur.
 const TOUCH = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
-const MARKER_R = TOUCH ? 7 : 5; // rayon du marqueur de micro-État à l'écran, constant quel que soit le zoom
+const MARKER_R = TOUCH ? 10 : 8; // rayon du repère déporté à l'écran, constant quel que soit le zoom
+const MARKER_HIDE_PX = 28; // dès que l'île fait cette taille à l'écran, on clique l'île elle-même
+// Emplacements candidats du cercle autour de l'île (distance et angle, en pixels écran).
+const CALLOUT_SLOTS = [22, 40, 60].flatMap((d) => [-60, -120, 0, 180, -30, -150, 60, 120, 90, -90].map((a) => [d * Math.cos((a * Math.PI) / 180), d * Math.sin((a * Math.PI) / 180)]));
 const POINT_R = TOUCH ? 7.5 : 5.5; // rayon d'une ville à l'écran, constant quel que soit le zoom
 const MAX_ZOOM = 80; // assez pour séparer des ronds superposés (Antilles, micro-États d'Europe)
 
@@ -102,7 +105,7 @@ export class GameMap {
     this.pointMode = mode === 'capitals' || mode === 'cities' || mode === 'monuments';
     this.onSelect = () => {};
     this.nodes = new Map(); // id -> [éléments SVG]
-    this.markers = []; // { node, area } micro-États, adaptés au zoom
+    this.markers = []; // repères déportés des micro-États : { group, leader, circle, cx, cy, size }
     this.points = []; // villes, adaptées au zoom
     this.zoomBehavior = null;
     this.clipCount = 0;
@@ -257,10 +260,52 @@ export class GameMap {
       const projected = path.projection()(geoCentroid(f));
       if (!projected || !Number.isFinite(projected[0])) continue;
       const [cx, cy] = projected;
-      const m = el('circle', { class: 'micro target', cx, cy, r: MARKER_R, 'data-id': f.key });
-      markers.appendChild(m);
-      this.#register(f.key, m);
-      this.markers.push({ node: m, area: path.area(f) });
+      const [[x0, y0], [x1, y1]] = path.bounds(f);
+      // Repère déporté : un trait part de l'île vers un cercle posé à côté, c'est lui qu'on clique.
+      const group = el('g', { class: 'micro target', 'data-id': f.key });
+      const leader = el('line', { class: 'leader', x1: cx, y1: cy, x2: cx, y2: cy });
+      const circle = el('circle', { cx, cy, r: MARKER_R });
+      group.appendChild(leader);
+      group.appendChild(circle);
+      markers.appendChild(group);
+      this.#register(f.key, group);
+      this.markers.push({ group, leader, circle, cx, cy, size: Math.max(x1 - x0, y1 - y0) });
+    }
+    this.#placeMarkers(1);
+  }
+
+  // Place les cercles des repères pour un niveau de zoom donné : chacun prend le premier
+  // emplacement libre autour de son île (pas sur un autre cercle, pas sur une autre île).
+  #placeMarkers(k) {
+    const r = MARKER_R / k;
+    const placed = [];
+    const islands = this.markers.map((m) => [m.cx, m.cy]);
+    const clash = (x, y, ownIndex) =>
+      placed.some((p) => Math.hypot(p[0] - x, p[1] - y) < 2 * r + 3 / k) ||
+      islands.some(([ix, iy], i) => i !== ownIndex && Math.hypot(ix - x, iy - y) < r + 4 / k);
+    // Les repères sont posés de haut en bas pour un rendu stable d'un zoom à l'autre.
+    const order = this.markers.map((m, i) => i).sort((a, b) => this.markers[a].cy - this.markers[b].cy || this.markers[a].cx - this.markers[b].cx);
+    for (const i of order) {
+      const m = this.markers[i];
+      const hidden = m.size * k >= MARKER_HIDE_PX;
+      m.group.style.display = hidden ? 'none' : '';
+      if (hidden) continue;
+      let best = null;
+      for (const [dx, dy] of CALLOUT_SLOTS) {
+        const x = m.cx + dx / k;
+        const y = m.cy + dy / k;
+        if (!clash(x, y, i)) {
+          best = [x, y];
+          break;
+        }
+      }
+      if (!best) best = [m.cx + CALLOUT_SLOTS[0][0] / k, m.cy + CALLOUT_SLOTS[0][1] / k];
+      placed.push(best);
+      m.circle.setAttribute('cx', best[0]);
+      m.circle.setAttribute('cy', best[1]);
+      m.circle.setAttribute('r', r);
+      m.leader.setAttribute('x2', best[0]);
+      m.leader.setAttribute('y2', best[1]);
     }
   }
 
@@ -317,10 +362,16 @@ export class GameMap {
   // Marqueurs et villes gardent leur taille à l'écran. Un marqueur de micro-État
   // s'efface dès que l'île qu'il signale est devenue assez grande pour être cliquée.
   #fitMarkers(k) {
-    for (const { node, area } of this.markers) {
-      node.setAttribute('r', MARKER_R / k);
-      // Marge ×2 pour que l'île soit confortablement cliquable avant que le rond parte.
-      node.style.display = area * k * k >= MICRO_AREA * 2 ? 'none' : '';
+    if (this.markers.length) {
+      // Au plus un calcul par image, le zoom envoie des dizaines d'événements par seconde.
+      this.pendingK = k;
+      if (!this.placing) {
+        this.placing = true;
+        requestAnimationFrame(() => {
+          this.placing = false;
+          this.#placeMarkers(this.pendingK);
+        });
+      }
     }
     for (const node of this.points) node.setAttribute('r', POINT_R / k);
   }
