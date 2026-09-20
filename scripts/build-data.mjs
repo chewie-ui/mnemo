@@ -363,7 +363,15 @@ if (wants('admin1')) {
       const points = features.reduce((k, f) => k + f.geometry.coordinates.flat(2).length, 0);
       const keep = Math.min(0.5, Math.max(0.08, 6000 / points));
       const id = cc.toLowerCase() + (variant.suffix ? `-${variant.suffix}` : '');
-      write(`admin1/${id}.json`, toTopo(features, keep));
+      const topo = toTopo(features, keep);
+      // Un îlot peut disparaître à la simplification (Redonda, Paracels…) : il ne doit
+      // alors pas être demandé, sinon la question est impossible.
+      const hasShape = (f) => (f.geometry?.coordinates ?? []).some((rings) => new Set(rings[0].map((pt) => pt.join(','))).size >= 3);
+      const drawable = new Set(feature(topo, topo.objects.layer).features.filter(hasShape).map((f) => f.id));
+      const playable = features.filter((f) => drawable.has(f.id));
+      if (playable.length < features.length) console.warn(`  ! ${id} : ${features.length - playable.length} unité(s) sans tracé écartée(s)`);
+      if (playable.length < MIN_UNITS) continue;
+      write(`admin1/${id}.json`, topo);
 
       const typeCounts = {};
       for (const g of units) for (const t of g.types) typeCounts[t] = (typeCounts[t] || 0) + 1;
@@ -379,7 +387,7 @@ if (wants('admin1')) {
         unit: unitLabel,
         center,
         bbox: [w, s, e, n],
-        units: features.map((f) => [f.id, f.properties.name]),
+        units: playable.map((f) => [f.id, f.properties.name]),
       });
     }
   }

@@ -276,9 +276,12 @@ export class GameMap {
   // tone(f) : 'target' | 'neutral' | 'context' | 'base' (terre non attribuée) | 'sea' | 'skip'
   #drawLayer(g, path, features, tone) {
     const targets = [];
-    for (const f of features) {
-      const role = tone(f);
-      if (role === 'skip') continue;
+    // Grandes zones d'abord, petites par-dessus : une enclave (Bruxelles dans le Brabant
+    // flamand, le Lesotho, Berlin…) reste visible et cliquable même si son voisin n'a pas de trou.
+    const ordered = features.map((f) => ({ f, role: tone(f), area: 0 })).filter((x) => x.role !== 'skip');
+    for (const x of ordered) x.area = path.area(x.f);
+    ordered.sort((a, b) => b.area - a.area);
+    for (const { f, role } of ordered) {
       const d = path(f);
       if (!d) continue;
       const clickable = role === 'target' || role === 'sea';
