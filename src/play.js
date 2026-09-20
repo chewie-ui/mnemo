@@ -93,6 +93,8 @@ export async function startGame(region, mode, duel = null) {
 
   ui.confirmToggle.checked = confirmMode;
   map.onSelect = (id, at) => {
+    // Une zone déjà répondue (colorée) ne fait plus rien : ni erreur, ni sélection.
+    if (game.results.some((r) => r.id === id)) return setFeedback('Déjà trouvé', '');
     if (!confirmMode) return handleAnswer(id, at);
     // Même zone recliquée : on valide. Sinon, on la surligne et on attend.
     if (pending?.id === id) return confirmPending();
