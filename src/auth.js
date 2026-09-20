@@ -55,6 +55,10 @@ export async function resetPassword(token, password) {
   return u;
 }
 
+export function changePassword(current, password) {
+  return post('auth', 'password', { current, password });
+}
+
 export async function logout() {
   try {
     await post('auth', 'logout');

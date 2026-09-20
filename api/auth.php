@@ -168,6 +168,28 @@ switch (action()) {
     ok(['user' => publicUser($row)]);
   }
 
+  // Changement depuis les réglages : l'ancien mot de passe est exigé.
+  case 'password': {
+    $uid = requireUser();
+    $in = input();
+    $current = (string) ($in['current'] ?? '');
+    $password = (string) ($in['password'] ?? '');
+    if (strlen($password) < 8) fail(422, 'Le nouveau mot de passe doit faire au moins 8 caractères.');
+    $stmt = db()->prepare('SELECT password_hash FROM users WHERE id = ?');
+    $stmt->execute([$uid]);
+    $row = $stmt->fetch();
+    if (!$row || !password_verify($current, $row['password_hash'])) {
+      usleep(300000);
+      fail(403, 'Mot de passe actuel incorrect.');
+    }
+    if ($current === $password) fail(422, 'Choisis un mot de passe différent de l’actuel.');
+    db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([password_hash($password, PASSWORD_DEFAULT), $uid]);
+    ensureResetTable();
+    db()->prepare('DELETE FROM password_resets WHERE user_id = ?')->execute([$uid]);
+    session_regenerate_id(true);
+    ok(['ok' => true]);
+  }
+
   case 'logout': {
     $_SESSION = [];
     session_destroy();

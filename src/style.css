@@ -1252,6 +1252,29 @@ p {
   outline-offset: 2px;
 }
 
+.password-form {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.password-form h3 {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.password-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+
+@media (max-width: 640px) {
+  .password-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .settings-row {
   display: flex;
   align-items: center;

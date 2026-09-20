@@ -1,6 +1,7 @@
 // Réglages : thème (système / clair / sombre), mode « confirmer », compte, données locales.
 // Tout est propre à l'appareil et gardé dans localStorage.
-import { currentUser, onAuthChange, logout } from './auth.js';
+import { currentUser, onAuthChange, logout, changePassword } from './auth.js';
+import { ApiError } from './api.js';
 import { openAuth } from './account.js';
 import { $, refreshIcons, toast, setLoading } from './ui.js';
 
@@ -55,6 +56,7 @@ function renderAccount() {
   const user = currentUser();
   $('settings-account-in').hidden = !user;
   $('settings-account-out').hidden = Boolean(user);
+  $('password-form').hidden = !user;
   if (user) {
     $('settings-name').textContent = user.name;
     $('settings-email').textContent = user.email ?? '';
@@ -63,6 +65,8 @@ function renderAccount() {
 
 export function renderSettings() {
   const pref = themePreference();
+  $('password-form').reset();
+  $('pwd-error').hidden = true;
   for (const input of document.querySelectorAll('input[name="theme"]')) input.checked = input.value === pref;
   $('settings-confirm').checked = confirmMode();
   renderAccount();
@@ -91,6 +95,32 @@ export function initSettings() {
       setLoading(e.currentTarget, false);
     }
   });
+  const pwdForm = $('password-form');
+  pwdForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const error = $('pwd-error');
+    const fail = (msg) => {
+      error.textContent = msg;
+      error.hidden = false;
+    };
+    const current = $('pwd-current').value;
+    const next = $('pwd-new').value;
+    if (!current) return fail('Indique ton mot de passe actuel.');
+    if (next.length < 8) return fail('Le nouveau mot de passe doit faire au moins 8 caractères.');
+    if (next !== $('pwd-confirm').value) return fail('Les deux nouveaux mots de passe ne sont pas identiques.');
+    error.hidden = true;
+    setLoading($('pwd-submit'), true);
+    try {
+      await changePassword(current, next);
+      pwdForm.reset();
+      toast('Mot de passe changé.');
+    } catch (err) {
+      fail(err instanceof ApiError ? err.message : 'Une erreur est survenue. Réessaie.');
+    } finally {
+      setLoading($('pwd-submit'), false);
+    }
+  });
+
   $('settings-clear').addEventListener('click', () => {
     if (!window.confirm('Effacer les données gardées dans ce navigateur ? Records hors connexion, progression de campagne locale et leçons non synchronisées seront perdus. Ton compte en ligne n’est pas touché.')) return;
     try {

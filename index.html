@@ -279,6 +279,25 @@
             <span class="settings-text"><strong id="settings-name"></strong><span id="settings-email" class="muted"></span></span>
             <button id="settings-logout" class="btn btn-ghost" type="button"><i data-lucide="log-out" aria-hidden="true"></i><span>Se déconnecter</span></button>
           </div>
+          <form id="password-form" class="password-form" novalidate hidden>
+            <h3>Changer de mot de passe</h3>
+            <div class="field">
+              <label for="pwd-current">Mot de passe actuel</label>
+              <input id="pwd-current" type="password" autocomplete="current-password" required />
+            </div>
+            <div class="password-grid">
+              <div class="field">
+                <label for="pwd-new">Nouveau mot de passe <span class="muted">(8 caractères minimum)</span></label>
+                <input id="pwd-new" type="password" autocomplete="new-password" required minlength="8" />
+              </div>
+              <div class="field">
+                <label for="pwd-confirm">Confirme le nouveau</label>
+                <input id="pwd-confirm" type="password" autocomplete="new-password" required minlength="8" />
+              </div>
+            </div>
+            <p id="pwd-error" class="form-error" role="alert" hidden></p>
+            <button id="pwd-submit" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Changer le mot de passe</span></button>
+          </form>
           <div id="settings-account-out" class="settings-row">
             <span class="settings-text"><strong>Pas connecté</strong><span class="muted">Un compte garde tes records, ta campagne et tes leçons partout, et permet les défis entre amis.</span></span>
             <button id="settings-login" class="btn btn-primary" type="button"><i data-lucide="circle-user-round" aria-hidden="true"></i><span>Se connecter</span></button>
