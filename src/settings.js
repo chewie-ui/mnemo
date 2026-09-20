@@ -1,6 +1,6 @@
 // Réglages : thème (système / clair / sombre), mode « confirmer », compte, données locales.
 // Tout est propre à l'appareil et gardé dans localStorage.
-import { currentUser, onAuthChange, logout, changePassword, deleteAccount, renameUser } from './auth.js';
+import { currentUser, onAuthChange, logout, changePassword, deleteAccount, renameUser, changeEmail } from './auth.js';
 import { ApiError } from './api.js';
 import { openAuth } from './account.js';
 import { $, refreshIcons, toast, setLoading } from './ui.js';
@@ -57,12 +57,15 @@ function renderAccount() {
   $('settings-account-in').hidden = !user;
   $('settings-account-out').hidden = Boolean(user);
   $('name-form').hidden = !user;
+  $('email-form').hidden = !user;
   $('password-form').hidden = !user;
   $('settings-danger').hidden = !user;
   if (user) {
     $('settings-name').textContent = user.name;
     $('settings-email').textContent = user.email ?? '';
     $('name-input').value = user.name;
+    $('email-input').value = user.email ?? '';
+    $('email-password').value = '';
   }
 }
 
@@ -71,6 +74,7 @@ export function renderSettings() {
   $('password-form').reset();
   $('pwd-error').hidden = true;
   $('name-error').hidden = true;
+  $('email-error').hidden = true;
   closeDelete();
   for (const input of document.querySelectorAll('input[name="theme"]')) input.checked = input.value === pref;
   $('settings-confirm').checked = confirmMode();
@@ -128,6 +132,31 @@ export function initSettings() {
       error.hidden = false;
     } finally {
       setLoading($('name-submit'), false);
+    }
+  });
+
+  $('email-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const error = $('email-error');
+    const fail = (msg) => {
+      error.textContent = msg;
+      error.hidden = false;
+    };
+    const email = $('email-input').value.trim();
+    const password = $('email-password').value;
+    if (!email || !$('email-input').checkValidity()) return fail('Adresse e-mail invalide.');
+    if (email.toLowerCase() === currentUser()?.email) return fail('C’est déjà ton adresse actuelle.');
+    if (!password) return fail('Indique ton mot de passe pour confirmer.');
+    error.hidden = true;
+    setLoading($('email-submit'), true);
+    try {
+      const user = await changeEmail(email, password);
+      $('email-password').value = '';
+      toast(`Adresse changée : ${user.email}.`);
+    } catch (err) {
+      fail(err instanceof ApiError ? err.message : 'Une erreur est survenue. Réessaie.');
+    } finally {
+      setLoading($('email-submit'), false);
     }
   });
 

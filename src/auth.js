@@ -61,6 +61,12 @@ export async function renameUser(name) {
   return u;
 }
 
+export async function changeEmail(email, password) {
+  const { user: u } = await post('auth', 'email', { email, password });
+  setUser(u);
+  return u;
+}
+
 export function changePassword(current, password) {
   return post('auth', 'password', { current, password });
 }

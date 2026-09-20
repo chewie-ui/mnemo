@@ -182,6 +182,33 @@ switch (action()) {
     ok(['user' => publicUser($stmt->fetch())]);
   }
 
+  // Changement d'adresse e-mail : mot de passe exigé, adresse valide et libre.
+  case 'email': {
+    $uid = requireUser();
+    $in = input();
+    $email = mb_strtolower(text($in['email'] ?? '', 190));
+    $password = (string) ($in['password'] ?? '');
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) fail(422, 'Adresse e-mail invalide.');
+    $stmt = db()->prepare('SELECT email, password_hash FROM users WHERE id = ?');
+    $stmt->execute([$uid]);
+    $row = $stmt->fetch();
+    if (!$row || !password_verify($password, $row['password_hash'])) {
+      usleep(300000);
+      fail(403, 'Mot de passe incorrect.');
+    }
+    if ($email !== $row['email']) {
+      $stmt = db()->prepare('SELECT id FROM users WHERE email = ? AND id <> ?');
+      $stmt->execute([$email, $uid]);
+      if ($stmt->fetch()) fail(409, 'Un compte existe déjà avec cette adresse.');
+      db()->prepare('UPDATE users SET email = ? WHERE id = ?')->execute([$email, $uid]);
+      ensureResetTable();
+      db()->prepare('DELETE FROM password_resets WHERE user_id = ?')->execute([$uid]);
+    }
+    $stmt = db()->prepare('SELECT id, email, name, trophies FROM users WHERE id = ?');
+    $stmt->execute([$uid]);
+    ok(['user' => publicUser($stmt->fetch())]);
+  }
+
   // Changement depuis les réglages : l'ancien mot de passe est exigé.
   case 'password': {
     $uid = requireUser();

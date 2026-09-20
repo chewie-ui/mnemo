@@ -1263,6 +1263,11 @@ p {
   margin-bottom: 12px;
 }
 
+.password-form .note {
+  margin: -8px 0 12px;
+  font-size: 14px;
+}
+
 .name-row {
   display: flex;
   align-items: flex-end;
