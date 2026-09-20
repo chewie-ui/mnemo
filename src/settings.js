@@ -1,6 +1,6 @@
 // Réglages : thème (système / clair / sombre), mode « confirmer », compte, données locales.
 // Tout est propre à l'appareil et gardé dans localStorage.
-import { currentUser, onAuthChange, logout, changePassword, deleteAccount } from './auth.js';
+import { currentUser, onAuthChange, logout, changePassword, deleteAccount, renameUser } from './auth.js';
 import { ApiError } from './api.js';
 import { openAuth } from './account.js';
 import { $, refreshIcons, toast, setLoading } from './ui.js';
@@ -56,11 +56,13 @@ function renderAccount() {
   const user = currentUser();
   $('settings-account-in').hidden = !user;
   $('settings-account-out').hidden = Boolean(user);
+  $('name-form').hidden = !user;
   $('password-form').hidden = !user;
   $('settings-danger').hidden = !user;
   if (user) {
     $('settings-name').textContent = user.name;
     $('settings-email').textContent = user.email ?? '';
+    $('name-input').value = user.name;
   }
 }
 
@@ -68,6 +70,7 @@ export function renderSettings() {
   const pref = themePreference();
   $('password-form').reset();
   $('pwd-error').hidden = true;
+  $('name-error').hidden = true;
   closeDelete();
   for (const input of document.querySelectorAll('input[name="theme"]')) input.checked = input.value === pref;
   $('settings-confirm').checked = confirmMode();
@@ -105,6 +108,29 @@ export function initSettings() {
       setLoading(e.currentTarget, false);
     }
   });
+  $('name-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const error = $('name-error');
+    const name = $('name-input').value.trim();
+    if (name.length < 2) {
+      error.textContent = 'Choisis un pseudo d’au moins 2 caractères.';
+      error.hidden = false;
+      return;
+    }
+    if (name === currentUser()?.name) return;
+    error.hidden = true;
+    setLoading($('name-submit'), true);
+    try {
+      await renameUser(name);
+      toast(`Tu t’appelles maintenant ${name}.`);
+    } catch (err) {
+      error.textContent = err instanceof ApiError ? err.message : 'Une erreur est survenue. Réessaie.';
+      error.hidden = false;
+    } finally {
+      setLoading($('name-submit'), false);
+    }
+  });
+
   const pwdForm = $('password-form');
   pwdForm.addEventListener('submit', async (e) => {
     e.preventDefault();

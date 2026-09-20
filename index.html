@@ -279,6 +279,17 @@
             <span class="settings-text"><strong id="settings-name"></strong><span id="settings-email" class="muted"></span></span>
             <button id="settings-logout" class="btn btn-ghost" type="button"><i data-lucide="log-out" aria-hidden="true"></i><span>Se déconnecter</span></button>
           </div>
+          <form id="name-form" class="password-form" novalidate hidden>
+            <h3>Changer de pseudo</h3>
+            <div class="name-row">
+              <div class="field">
+                <label for="name-input">Pseudo <span class="muted">(2 caractères minimum, visible par tes amis)</span></label>
+                <input id="name-input" type="text" autocomplete="nickname" maxlength="60" required minlength="2" />
+              </div>
+              <button id="name-submit" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Enregistrer</span></button>
+            </div>
+            <p id="name-error" class="form-error" role="alert" hidden></p>
+          </form>
           <form id="password-form" class="password-form" novalidate hidden>
             <h3>Changer de mot de passe</h3>
             <div class="field">

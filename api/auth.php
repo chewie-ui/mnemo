@@ -168,6 +168,20 @@ switch (action()) {
     ok(['user' => publicUser($row)]);
   }
 
+  // Changement de pseudo : mêmes règles qu'à l'inscription (2 caractères minimum, unique).
+  case 'rename': {
+    $uid = requireUser();
+    $name = text(input()['name'] ?? '', 60);
+    if (mb_strlen($name) < 2) fail(422, 'Choisis un pseudo d’au moins 2 caractères.');
+    $stmt = db()->prepare('SELECT id FROM users WHERE LOWER(name) = LOWER(?) AND id <> ?');
+    $stmt->execute([$name, $uid]);
+    if ($stmt->fetch()) fail(409, 'Ce pseudo est déjà pris.');
+    db()->prepare('UPDATE users SET name = ? WHERE id = ?')->execute([$name, $uid]);
+    $stmt = db()->prepare('SELECT id, email, name, trophies FROM users WHERE id = ?');
+    $stmt->execute([$uid]);
+    ok(['user' => publicUser($stmt->fetch())]);
+  }
+
   // Changement depuis les réglages : l'ancien mot de passe est exigé.
   case 'password': {
     $uid = requireUser();

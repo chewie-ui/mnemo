@@ -55,6 +55,12 @@ export async function resetPassword(token, password) {
   return u;
 }
 
+export async function renameUser(name) {
+  const { user: u } = await post('auth', 'rename', { name });
+  setUser(u);
+  return u;
+}
+
 export function changePassword(current, password) {
   return post('auth', 'password', { current, password });
 }

@@ -1263,6 +1263,26 @@ p {
   margin-bottom: 12px;
 }
 
+.name-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.name-row .field {
+  flex: 1 1 240px;
+  margin-bottom: 0;
+}
+
+.name-row .btn {
+  margin-bottom: 0;
+}
+
+.name-form .form-error {
+  margin-top: 12px;
+}
+
 .password-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
