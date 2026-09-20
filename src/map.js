@@ -389,6 +389,12 @@ export class GameMap {
     return COUNTRIES[id]?.fr ?? US_STATES[id] ?? this.targets.find((t) => t.id === id)?.name ?? null;
   }
 
+  // Surligne une zone en attente de confirmation (null pour tout désélectionner).
+  setSelected(id) {
+    for (const n of this.svg.querySelectorAll('.is-selected')) n.classList.remove('is-selected');
+    for (const n of this.nodes.get(id) ?? []) n.classList.add('is-selected');
+  }
+
   // state : 'correct-1' | 'correct-2' | 'correct-3' | 'reveal' | 'failed' | null
   setState(id, state) {
     for (const n of this.nodes.get(id) ?? []) {

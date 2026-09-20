@@ -1663,3 +1663,99 @@ p {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* Mode « confirmer » : interrupteur dans la barre de jeu, zone surlignée, bouton Valider. */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.switch-track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: #b8c2cb;
+  transition: background-color 150ms ease;
+  flex-shrink: 0;
+}
+
+.switch-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 150ms ease;
+}
+
+.switch input:checked + .switch-track {
+  background: var(--accent);
+}
+
+.switch input:checked + .switch-track::after {
+  transform: translateX(16px);
+}
+
+.switch input:checked ~ .switch-label {
+  color: var(--text);
+}
+
+.switch input:focus-visible + .switch-track {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.switch:hover .switch-track {
+  filter: brightness(0.95);
+}
+
+.target.is-selected,
+.micro.is-selected circle,
+.city.is-selected {
+  fill: #bcd3f2;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+.river-group.is-selected .river {
+  stroke: var(--accent);
+  stroke-width: 4;
+}
+
+.confirm-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgb(20 24 29 / 0.2);
+  z-index: 3;
+}
+
+@media (max-width: 767px) {
+  .switch-label {
+    display: none;
+  }
+}

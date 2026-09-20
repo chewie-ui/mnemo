@@ -88,6 +88,11 @@
           <strong id="prompt-name">…</strong>
           <span id="feedback" class="feedback" role="status"></span>
         </div>
+        <label class="switch" title="Le clic surligne la zone, puis tu valides">
+          <input id="confirm-toggle" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-label">Confirmer</span>
+        </label>
         <dl class="hud">
           <div id="hud-rival" class="hud-rival" hidden><dt id="hud-rival-name">Adversaire</dt><dd id="hud-rival-progress">—</dd></div>
           <div><dt>Progression</dt><dd id="hud-progress">0 / 0</dd></div>
@@ -103,6 +108,10 @@
         </div>
         <svg id="map" class="map" role="img" aria-label="Carte muette"></svg>
         <div id="map-tip" class="map-tip" role="status" hidden></div>
+        <div id="confirm-bar" class="confirm-bar" hidden>
+          <button id="confirm-ok" class="btn btn-primary" type="button"><i data-lucide="check" aria-hidden="true"></i><span>Valider</span></button>
+          <button id="confirm-cancel" class="btn btn-ghost" type="button">Annuler</button>
+        </div>
         <div class="zoom-controls">
           <button id="zoom-in" class="btn btn-icon" type="button" aria-label="Zoomer"><i data-lucide="plus" aria-hidden="true"></i></button>
           <button id="zoom-out" class="btn btn-icon" type="button" aria-label="Dézoomer"><i data-lucide="minus" aria-hidden="true"></i></button>

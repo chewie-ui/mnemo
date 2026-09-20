@@ -26,11 +26,31 @@ const ui = {
   rivalProgress: $('hud-rival-progress'),
   duelResult: $('res-duel'),
   duelsBtn: $('btn-duels'),
+  confirmToggle: $('confirm-toggle'),
+  confirmBar: $('confirm-bar'),
 };
+
+// Mode « confirmer » : le clic surligne la zone, un second clic (ou Valider) répond.
+// Réglage propre à l'appareil, gardé d'une partie à l'autre.
+const CONFIRM_KEY = 'mnemo:confirm';
+let confirmMode = false;
+try {
+  confirmMode = localStorage.getItem(CONFIRM_KEY) === '1';
+} catch {
+  /* stockage indisponible */
+}
+let pending = null; // { id, at } : zone surlignée en attente de validation
 
 let session = null; // { region, mode, game, map, timer, duel, poll }
 
+function clearPending() {
+  if (pending) session?.map.setSelected(null);
+  pending = null;
+  ui.confirmBar.hidden = true;
+}
+
 export function stopSession() {
+  clearPending();
   if (session?.timer) clearInterval(session.timer);
   if (session?.poll) clearInterval(session.poll);
   session = null;
@@ -71,7 +91,15 @@ export async function startGame(region, mode, duel = null) {
     ui.time.textContent = formatTime(game.elapsedMs);
   }, 500);
 
-  map.onSelect = (id, at) => handleAnswer(id, at);
+  ui.confirmToggle.checked = confirmMode;
+  map.onSelect = (id, at) => {
+    if (!confirmMode) return handleAnswer(id, at);
+    // Même zone recliquée : on valide. Sinon, on la surligne et on attend.
+    if (pending?.id === id) return confirmPending();
+    pending = { id, at };
+    map.setSelected(id);
+    ui.confirmBar.hidden = false;
+  };
   updateHud();
 
   if (duel) {
@@ -157,6 +185,13 @@ function showTip(text, at) {
   tipTimer = setTimeout(() => {
     ui.tip.hidden = true;
   }, 1600);
+}
+
+function confirmPending() {
+  if (!pending) return;
+  const { id, at } = pending;
+  clearPending();
+  handleAnswer(id, at);
 }
 
 function handleAnswer(id, at) {
@@ -265,6 +300,23 @@ async function finishDuel(duel, stats) {
   // Le défi compte aussi comme une partie normale côté records locaux.
   return recordGame(session.region.id, session.mode, stats, { skipServer: true });
 }
+
+ui.confirmToggle.addEventListener('change', () => {
+  confirmMode = ui.confirmToggle.checked;
+  try {
+    localStorage.setItem(CONFIRM_KEY, confirmMode ? '1' : '0');
+  } catch {
+    /* stockage indisponible */
+  }
+  if (!confirmMode) clearPending();
+});
+$('confirm-ok').addEventListener('click', confirmPending);
+$('confirm-cancel').addEventListener('click', clearPending);
+document.addEventListener('keydown', (e) => {
+  if (!pending || $('screen-game').hidden) return;
+  if (e.key === 'Enter') confirmPending();
+  if (e.key === 'Escape') clearPending();
+});
 
 $('btn-quit').addEventListener('click', () => {
   location.hash = '#/';
