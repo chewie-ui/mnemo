@@ -1,4 +1,5 @@
 // Point d'entrée : routeur (hash) et démarrage.
+import { initSettings, renderSettings } from './settings.js';
 import { MODES, regionById } from './data/regions.js';
 import { loadUser, onAuthChange, currentUser } from './auth.js';
 import { refreshServerBests } from './scores.js';
@@ -40,6 +41,9 @@ function route() {
 
   if (hash === '#/campagne') {
     renderCampaign();
+  } else if (hash === '#/reglages') {
+    showScreen('settings');
+    renderSettings();
   } else if (hash === '#/amis') {
     showScreen('friends');
     renderFriends();
@@ -96,6 +100,7 @@ async function startDuel(id) {
 async function boot() {
   refreshIcons();
   initAccount();
+  initSettings();
   initFriends();
   window.addEventListener('hashchange', route);
   // Les pages qui lisent une leçon attendent de savoir qui est connecté (stockage local ou serveur).

@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Apprends en jouant : géographie, histoire, pays en détail, et tes propres leçons en cartes mémo." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ffffff" />
+    <script>
+      // Thème posé avant le premier rendu pour éviter un flash blanc (réglage dans Réglages).
+      try {
+        var t = localStorage.getItem('mnemo:theme');
+        if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
     <title>Mnemo — Apprendre en jouant</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/src/style.css" />
@@ -24,6 +34,7 @@
         <a href="#/amis">Amis <span id="nav-badge" class="badge" hidden>0</span></a>
       </nav>
       <div class="user-area">
+        <a class="btn btn-ghost btn-icon settings-btn" href="#/reglages" aria-label="Réglages" title="Réglages"><i data-lucide="settings" aria-hidden="true"></i></a>
         <button id="user-btn" class="btn btn-ghost user-btn" type="button" aria-haspopup="menu" aria-expanded="false">
           <i data-lucide="circle-user-round" aria-hidden="true"></i>
           <span id="user-label">Se connecter</span>
@@ -32,6 +43,7 @@
           <a class="menu-item" role="menuitem" href="#/stats"><i data-lucide="bar-chart-3" aria-hidden="true"></i><span>Mes stats</span></a>
           <a class="menu-item" role="menuitem" href="#/memos"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Mes mémos</span></a>
           <a class="menu-item" role="menuitem" href="#/amis"><i data-lucide="users" aria-hidden="true"></i><span>Amis et défis</span></a>
+          <a class="menu-item" role="menuitem" href="#/reglages"><i data-lucide="settings" aria-hidden="true"></i><span>Réglages</span></a>
           <button id="logout-btn" class="menu-item" role="menuitem" type="button"><i data-lucide="log-out" aria-hidden="true"></i><span>Se déconnecter</span></button>
         </div>
       </div>
@@ -203,6 +215,63 @@
     <!-- Défi : invitation, attente, écran VS -->
     <main id="screen-duel" class="screen container page" hidden>
       <div id="duel-body"></div>
+    </main>
+
+    <!-- Réglages -->
+    <main id="screen-settings" class="screen container page" hidden>
+      <div class="page-head">
+        <a class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1>Réglages</h1>
+      </div>
+      <div class="settings">
+        <section class="settings-section">
+          <h2>Apparence</h2>
+          <p class="note">Le thème est gardé sur cet appareil.</p>
+          <fieldset class="theme-picker">
+            <legend class="sr-only">Thème</legend>
+            <label class="theme-option">
+              <input type="radio" name="theme" value="system" />
+              <span class="theme-card"><i data-lucide="monitor" aria-hidden="true"></i><span>Système</span><small>Suit ton appareil</small></span>
+            </label>
+            <label class="theme-option">
+              <input type="radio" name="theme" value="light" />
+              <span class="theme-card"><i data-lucide="sun" aria-hidden="true"></i><span>Clair</span><small>Fond blanc</small></span>
+            </label>
+            <label class="theme-option">
+              <input type="radio" name="theme" value="dark" />
+              <span class="theme-card"><i data-lucide="moon" aria-hidden="true"></i><span>Sombre</span><small>Repose les yeux</small></span>
+            </label>
+          </fieldset>
+        </section>
+
+        <section class="settings-section">
+          <h2>Jeu</h2>
+          <label class="settings-row">
+            <span class="settings-text"><strong>Mode confirmer</strong><span class="muted">Le clic surligne la zone, puis tu valides. Utile sur téléphone ou sur les petites zones.</span></span>
+            <span class="switch"><input id="settings-confirm" type="checkbox" /><span class="switch-track" aria-hidden="true"></span></span>
+          </label>
+        </section>
+
+        <section class="settings-section">
+          <h2>Compte</h2>
+          <div id="settings-account-in" class="settings-row" hidden>
+            <span class="settings-text"><strong id="settings-name"></strong><span id="settings-email" class="muted"></span></span>
+            <button id="settings-logout" class="btn btn-ghost" type="button"><i data-lucide="log-out" aria-hidden="true"></i><span>Se déconnecter</span></button>
+          </div>
+          <div id="settings-account-out" class="settings-row">
+            <span class="settings-text"><strong>Pas connecté</strong><span class="muted">Un compte garde tes records, ta campagne et tes leçons partout, et permet les défis entre amis.</span></span>
+            <button id="settings-login" class="btn btn-primary" type="button"><i data-lucide="circle-user-round" aria-hidden="true"></i><span>Se connecter</span></button>
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <h2>Données de ce navigateur</h2>
+          <div class="settings-row">
+            <span class="settings-text"><strong>Effacer les données locales</strong><span class="muted">Records hors connexion, progression de campagne locale et leçons non synchronisées. Ton compte en ligne n’est pas touché.</span></span>
+            <button id="settings-clear" class="btn btn-ghost btn-danger" type="button"><i data-lucide="trash-2" aria-hidden="true"></i><span>Effacer</span></button>
+          </div>
+        </section>
+      </div>
     </main>
 
     <!-- Amis, défis, classement -->

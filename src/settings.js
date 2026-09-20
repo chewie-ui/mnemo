@@ -1,0 +1,106 @@
+// Réglages : thème (système / clair / sombre), mode « confirmer », compte, données locales.
+// Tout est propre à l'appareil et gardé dans localStorage.
+import { currentUser, onAuthChange, logout } from './auth.js';
+import { openAuth } from './account.js';
+import { $, refreshIcons, toast, setLoading } from './ui.js';
+
+export const THEME_KEY = 'mnemo:theme';
+export const CONFIRM_KEY = 'mnemo:confirm';
+const THEMES = ['system', 'light', 'dark'];
+const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+function readPref(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writePref(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* stockage indisponible : le réglage vaut pour la session */
+  }
+}
+
+export function themePreference() {
+  const t = readPref(THEME_KEY);
+  return THEMES.includes(t) ? t : 'system';
+}
+
+// Pose le thème effectif sur <html> (le script inline de index.html fait pareil avant le premier rendu).
+export function applyTheme() {
+  const pref = themePreference();
+  const resolved = pref === 'system' ? (media.matches ? 'dark' : 'light') : pref;
+  document.documentElement.dataset.theme = resolved;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolved === 'dark' ? '#181f27' : '#ffffff');
+}
+
+export function setTheme(pref) {
+  writePref(THEME_KEY, THEMES.includes(pref) ? pref : 'system');
+  applyTheme();
+}
+
+media.addEventListener('change', () => {
+  if (themePreference() === 'system') applyTheme();
+});
+
+export const confirmMode = () => readPref(CONFIRM_KEY) === '1';
+export const setConfirmMode = (on) => writePref(CONFIRM_KEY, on ? '1' : '0');
+
+// ─── Page ───
+function renderAccount() {
+  const user = currentUser();
+  $('settings-account-in').hidden = !user;
+  $('settings-account-out').hidden = Boolean(user);
+  if (user) {
+    $('settings-name').textContent = user.name;
+    $('settings-email').textContent = user.email ?? '';
+  }
+}
+
+export function renderSettings() {
+  const pref = themePreference();
+  for (const input of document.querySelectorAll('input[name="theme"]')) input.checked = input.value === pref;
+  $('settings-confirm').checked = confirmMode();
+  renderAccount();
+  refreshIcons();
+}
+
+export function initSettings() {
+  applyTheme();
+  onAuthChange(renderAccount);
+
+  for (const input of document.querySelectorAll('input[name="theme"]')) {
+    input.addEventListener('change', () => {
+      if (input.checked) setTheme(input.value);
+    });
+  }
+  $('settings-confirm').addEventListener('change', (e) => setConfirmMode(e.currentTarget.checked));
+  $('settings-login').addEventListener('click', () => openAuth('login'));
+  $('settings-logout').addEventListener('click', async (e) => {
+    setLoading(e.currentTarget, true);
+    try {
+      await logout();
+      toast('Tu es déconnecté.');
+    } catch {
+      toast('Déconnexion impossible pour le moment.');
+    } finally {
+      setLoading(e.currentTarget, false);
+    }
+  });
+  $('settings-clear').addEventListener('click', () => {
+    if (!window.confirm('Effacer les données gardées dans ce navigateur ? Records hors connexion, progression de campagne locale et leçons non synchronisées seront perdus. Ton compte en ligne n’est pas touché.')) return;
+    try {
+      const keep = { theme: readPref(THEME_KEY), confirm: readPref(CONFIRM_KEY) };
+      for (const key of Object.keys(localStorage)) if (key.startsWith('mnemo:')) localStorage.removeItem(key);
+      if (keep.theme) writePref(THEME_KEY, keep.theme);
+      if (keep.confirm) writePref(CONFIRM_KEY, keep.confirm);
+    } catch {
+      /* stockage indisponible */
+    }
+    toast('Données locales effacées.');
+  });
+}

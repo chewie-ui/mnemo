@@ -1,4 +1,5 @@
 // Écran de partie : carte muette, question, réponses, résultats.
+import { confirmMode as readConfirmMode, setConfirmMode } from './settings.js';
 import { targetsFor, modeLabel, unitLabel } from './data/regions.js';
 import { Game, formatTime } from './game.js';
 import { GameMap } from './map.js';
@@ -36,13 +37,7 @@ const ui = {
 
 // Mode « confirmer » : le clic surligne la zone, un second clic (ou Valider) répond.
 // Réglage propre à l'appareil, gardé d'une partie à l'autre.
-const CONFIRM_KEY = 'mnemo:confirm';
 let confirmMode = false;
-try {
-  confirmMode = localStorage.getItem(CONFIRM_KEY) === '1';
-} catch {
-  /* stockage indisponible */
-}
 let pending = null; // { id, at } : zone surlignée en attente de validation
 
 let session = null; // { region, mode, game, map, timer, duel, poll }
@@ -120,6 +115,7 @@ export async function startGame(region, mode, duel = null, level = null) {
     ui.time.textContent = formatTime(game.elapsedMs);
   }, 500);
 
+  confirmMode = readConfirmMode();
   ui.confirmToggle.checked = confirmMode;
   map.onSelect = (id, at) => {
     // Une zone déjà répondue (colorée) ne fait plus rien : ni erreur, ni sélection.
@@ -362,11 +358,7 @@ async function finishDuel(duel, stats) {
 
 ui.confirmToggle.addEventListener('change', () => {
   confirmMode = ui.confirmToggle.checked;
-  try {
-    localStorage.setItem(CONFIRM_KEY, confirmMode ? '1' : '0');
-  } catch {
-    /* stockage indisponible */
-  }
+  setConfirmMode(confirmMode);
   if (!confirmMode) clearPending();
 });
 $('confirm-ok').addEventListener('click', confirmPending);
