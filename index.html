@@ -16,6 +16,7 @@
         <span>Mnemo</span>
       </a>
       <nav class="topnav" aria-label="Sections">
+        <a href="#/campagne">Campagne</a>
         <a href="#/#geo">Géographie</a>
         <a href="#/#histoire">Histoire</a>
         <a href="#/#pays">Pays en détail</a>
@@ -43,7 +44,8 @@
         <h1>Apprends en jouant</h1>
         <p class="lead">Des cartes muettes pour la géographie et l'histoire, et tes propres leçons en cartes mémo. Trois essais par question, un chrono, et tes progrès enregistrés.</p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="#/#geo"><i data-lucide="play" aria-hidden="true"></i><span>Commencer à apprendre</span></a>
+          <a class="btn btn-primary" href="#/campagne"><i data-lucide="play" aria-hidden="true"></i><span>Commencer la campagne</span></a>
+          <a class="btn btn-ghost" href="#/#geo"><i data-lucide="globe" aria-hidden="true"></i><span>Jouer une carte libre</span></a>
           <a class="btn btn-ghost" href="#/memos"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Créer une leçon</span></a>
         </div>
       </section>
@@ -83,6 +85,7 @@
           <span>Quitter</span>
         </button>
         <div class="prompt" aria-live="polite">
+          <span id="hud-level" class="level-tag" hidden></span>
           <span class="prompt-label">Trouve</span>
           <img id="prompt-flag" class="prompt-flag" alt="Drapeau à retrouver" hidden />
           <strong id="prompt-name">…</strong>
@@ -187,6 +190,16 @@
       <div id="study-body"></div>
     </main>
 
+    <!-- Campagne -->
+    <main id="screen-campaign" class="screen container page" hidden>
+      <div class="page-head">
+        <a class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1>Campagne</h1>
+      </div>
+      <p class="note">Des niveaux courts, du plus simple au plus complet. 1 étoile = niveau réussi (70 % du premier coup), 2 étoiles = 90 %, 3 étoiles = sans faute. Chaque étoile rapporte des trophées, et un chapitre complet débloque un badge.</p>
+      <div id="campaign-body"></div>
+    </main>
+
     <!-- Défi : invitation, attente, écran VS -->
     <main id="screen-duel" class="screen container page" hidden>
       <div id="duel-body"></div>
@@ -236,12 +249,17 @@
         </div>
         <p id="res-best" class="best"></p>
         <p id="res-duel" class="duel-result" hidden></p>
+        <p id="res-level" class="level-result" hidden></p>
         <p id="res-saved" class="muted small" hidden></p>
         <div id="res-missed-wrap">
           <h3>À revoir</h3>
           <ul id="res-missed" class="missed"></ul>
         </div>
         <div class="modal-actions">
+          <button id="btn-next-level" class="btn btn-primary" type="button" hidden>
+            <i data-lucide="arrow-right" aria-hidden="true"></i>
+            <span>Niveau suivant</span>
+          </button>
           <button id="btn-replay" class="btn btn-primary" type="button">
             <i data-lucide="rotate-ccw" aria-hidden="true"></i>
             <span>Rejouer</span>

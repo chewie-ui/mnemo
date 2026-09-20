@@ -9,6 +9,7 @@ import { renderStats } from './stats.js';
 import { renderMemosList, renderDeckEditor, renderStudy } from './memos-ui.js';
 import { renderFriends, initFriends } from './friends.js';
 import { openDuel, stopDuelWatch, startInboxWatch, stopInboxWatch } from './duel-ui.js';
+import { renderCampaign, levelById, isUnlocked, loadProgress } from './campaign.js';
 import { showScreen, refreshIcons, toast } from './ui.js';
 
 function route() {
@@ -25,6 +26,11 @@ function route() {
     }
   }
   stopDuelWatch();
+  if ((m = hash.match(/^#\/campagne\/([\w-]+)$/))) {
+    stopSession();
+    startLevel(m[1]);
+    return;
+  }
   if ((m = hash.match(/^#\/duel\/(\d+)$/))) {
     stopSession();
     startDuel(Number(m[1]));
@@ -32,7 +38,9 @@ function route() {
   }
   stopSession();
 
-  if (hash === '#/amis') {
+  if (hash === '#/campagne') {
+    renderCampaign();
+  } else if (hash === '#/amis') {
     showScreen('friends');
     renderFriends();
   } else if (hash === '#/stats') {
@@ -54,6 +62,24 @@ function route() {
     const anchor = hash.match(/^#\/#([\w-]+)$/)?.[1];
     if (anchor) document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth' });
   }
+}
+
+// Un niveau de campagne : verrouillé tant que le précédent n'est pas réussi.
+async function startLevel(id) {
+  const level = levelById(id);
+  if (!level) {
+    location.hash = '#/campagne';
+    return;
+  }
+  await loadUser();
+  await loadProgress();
+  if (!isUnlocked(level)) {
+    toast('Termine d’abord le niveau précédent.');
+    location.hash = '#/campagne';
+    return;
+  }
+  showScreen('game');
+  startGame(regionById(level.region), level.mode, null, level);
 }
 
 // Un défi : on attend de connaître l'utilisateur, puis l'écran qui correspond à son état.
@@ -83,7 +109,7 @@ async function boot() {
     else stopInboxWatch();
     route();
   });
-  if (!location.hash.startsWith('#/play/') && !location.hash.startsWith('#/duel/')) route();
+  if (!location.hash.startsWith('#/play/') && !location.hash.startsWith('#/duel/') && !location.hash.startsWith('#/campagne/')) route();
 }
 
 boot();

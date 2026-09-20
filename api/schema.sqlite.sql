@@ -71,3 +71,12 @@ CREATE TABLE IF NOT EXISTS duel_results (
   finished_at TEXT NULL,
   PRIMARY KEY (duel_id, user_id)
 );
+CREATE TABLE IF NOT EXISTS campaign_progress (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  level_id TEXT NOT NULL,
+  stars INTEGER NOT NULL DEFAULT 0,
+  score INTEGER NOT NULL DEFAULT 0,
+  time_ms INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, level_id)
+);

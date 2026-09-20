@@ -4,9 +4,14 @@ import { currentUser } from './auth.js';
 import { regionById, modeLabel } from './data/regions.js';
 import { formatTime } from './game.js';
 import { openAuth } from './account.js';
+import { levelById } from './data/campaign.js';
 import { $, escapeHtml, refreshIcons, formatDate } from './ui.js';
 
 function mapName(regionId, mode) {
+  if (regionId.startsWith('campaign:')) {
+    const level = levelById(regionId.slice(9));
+    return level ? `Campagne · ${level.title}` : 'Campagne';
+  }
   const region = regionById(regionId);
   if (!region) return `${regionId} · ${mode}`;
   return `${region.name} · ${modeLabel(region, mode)}`;

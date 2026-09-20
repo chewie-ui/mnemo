@@ -7,7 +7,8 @@ import { currentUser } from './auth.js';
 import { LANGUAGES } from './data/languages.js';
 import { CURRENCIES } from './data/currencies.js';
 import { get, post } from './api.js';
-import { $, flagUrl, escapeHtml } from './ui.js';
+import { levelTargets, completeLevel, starRow } from './campaign.js';
+import { $, flagUrl, escapeHtml, refreshIcons } from './ui.js';
 
 const ui = {
   promptLabel: document.querySelector('.prompt-label'),
@@ -28,6 +29,9 @@ const ui = {
   duelsBtn: $('btn-duels'),
   confirmToggle: $('confirm-toggle'),
   confirmBar: $('confirm-bar'),
+  levelTag: $('hud-level'),
+  levelResult: $('res-level'),
+  nextBtn: $('btn-next-level'),
 };
 
 // Mode « confirmer » : le clic surligne la zone, un second clic (ou Valider) répond.
@@ -58,10 +62,14 @@ export function stopSession() {
   ui.rival.hidden = true;
   ui.duelResult.hidden = true;
   ui.duelsBtn.hidden = true;
+  ui.levelResult.hidden = true;
+  ui.nextBtn.hidden = true;
+  ui.levelTag.hidden = true;
 }
 
 // duel : { id, seed, opponent: { name }, them: { progress } } quand la partie est un défi.
-export async function startGame(region, mode, duel = null) {
+// level : niveau de campagne (sous-ensemble de cibles, étoiles à la fin).
+export async function startGame(region, mode, duel = null, level = null) {
   stopSession();
   ui.feedback.textContent = '';
   ui.feedback.className = 'feedback';
@@ -69,10 +77,14 @@ export async function startGame(region, mode, duel = null) {
   ui.loading.innerHTML = '<span class="spinner" aria-hidden="true"></span><span>Chargement de la carte…</span>';
   ui.svg.innerHTML = '';
 
-  const targets = targetsFor(region, mode);
+  const targets = level ? levelTargets(level) : targetsFor(region, mode);
   const game = new Game(targets, duel?.seed ?? null);
-  const map = new GameMap(ui.svg, region, targets, mode);
-  session = { region, mode, game, map, timer: null, duel, poll: null, lastProgressSent: 0 };
+  const map = new GameMap(ui.svg, region, targets, mode, { restrict: Boolean(level) });
+  session = { region, mode, game, map, timer: null, duel, level, poll: null, lastProgressSent: 0 };
+  if (level) {
+    ui.levelTag.hidden = false;
+    ui.levelTag.textContent = `Niveau ${level.number} · ${level.title}`;
+  }
   ui.svg.setAttribute('aria-label', `Carte muette — ${region.name}, ${modeLabel(region, mode)}`);
 
   try {
@@ -263,7 +275,11 @@ async function finishGame() {
   saved.hidden = false;
 
   let isBest;
-  if (session.duel) {
+  if (session.level) {
+    // Un niveau est enregistré à part : ses 7 questions ne doivent pas devenir le record de toute l'Europe.
+    isBest = await recordGame(`campaign:${session.level.id}`, mode, stats);
+    await showLevelResult(session.level, stats);
+  } else if (session.duel) {
     clearInterval(session.poll);
     isBest = await finishDuel(session.duel, stats);
     ui.duelsBtn.hidden = false;
@@ -277,6 +293,29 @@ async function finishGame() {
 
   ui.results.hidden = false;
   $('btn-replay').focus();
+}
+
+// Fin d'un niveau de campagne : étoiles, récompenses, niveau suivant.
+async function showLevelResult(level, stats) {
+  const res = await completeLevel(level, stats);
+  const box = ui.levelResult;
+  const lines = [];
+  if (res.stars === 0) lines.push('Pas encore d’étoile : il faut 70 % du premier coup pour valider le niveau.');
+  else if (res.newStars > 0) lines.push(`${res.newStars} nouvelle${res.newStars > 1 ? 's' : ''} étoile${res.newStars > 1 ? 's' : ''} !`);
+  else lines.push('Niveau déjà validé, étoiles conservées.');
+  if (res.trophies > 0) lines.push(`+${res.trophies} trophées`);
+  if (res.chapterDone) lines.push(`Chapitre terminé : badge « ${res.chapter.badge} » débloqué !`);
+  box.innerHTML = `<strong>Niveau ${level.number} · ${escapeHtml(level.title)}</strong>${starRow(res.stars)}<span>${escapeHtml(lines.join(' · '))}</span>`;
+  box.className = `level-result ${res.stars ? 'is-win' : ''}`;
+  box.hidden = false;
+  refreshIcons();
+  ui.nextBtn.hidden = !(res.next && res.stars > 0);
+  if (res.next && res.stars > 0) {
+    ui.nextBtn.querySelector('span').textContent = `Niveau suivant : ${res.next.title}`;
+    ui.nextBtn.onclick = () => {
+      location.hash = `#/campagne/${res.next.id}`;
+    };
+  }
 }
 
 // Fin d'un défi : le serveur enregistre la partie et, si l'autre a fini, désigne le gagnant.
@@ -327,7 +366,7 @@ $('btn-home').addEventListener('click', () => {
   location.hash = '#/';
 });
 $('btn-replay').addEventListener('click', () => {
-  if (session) startGame(session.region, session.mode);
+  if (session) startGame(session.region, session.mode, null, session.level);
 });
 $('btn-duels').addEventListener('click', () => {
   location.hash = '#/amis';

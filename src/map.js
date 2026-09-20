@@ -129,8 +129,10 @@ export class GameMap {
    * @param {object} region   voir data/regions.js
    * @param {Array}  targets  cibles de la partie ({ id, name } ou { id, name, lat, lon, state? })
    * @param {string} mode     'countries' | 'flags' | 'capitals' | 'cities' | 'rivers' | 'seas'
+   * @param {object} [options] { restrict } : seules les cibles listées sont cliquables (campagne)
    */
-  constructor(svg, region, targets, mode = 'countries') {
+  constructor(svg, region, targets, mode = 'countries', { restrict = false } = {}) {
+    this.restrict = restrict;
     this.svg = svg;
     this.region = region;
     this.targets = targets;
@@ -182,9 +184,12 @@ export class GameMap {
   }
 
   // Rôle d'une zone : cible cliquable, membre de la carte (clair, inerte) ou décor (sombre).
-  #tone(inRegion) {
+  #tone(inRegion, key = null) {
     if (!inRegion) return 'context';
-    return this.zoneMode ? 'target' : 'neutral';
+    if (!this.zoneMode) return 'neutral';
+    // Niveau de campagne : les pays hors du niveau se voient mais ne se cliquent pas.
+    if (this.restrict && (this.mode === 'countries' || this.mode === 'flags') && !this.targetIds.has(key)) return 'neutral';
+    return 'target';
   }
 
   #projection() {
@@ -223,7 +228,7 @@ export class GameMap {
       // Seuls les pays jouables (dans countries.js) sont des cibles : Groenland, Malouines
     // ou Porto Rico restent du décor, même sur la carte du Monde.
     const inRegion = (f) => Boolean(f.key) && Boolean(COUNTRIES[f.key]) && (!r.continent || COUNTRIES[f.key].c === r.continent);
-      this.#drawLayer(g, path, countries, (f) => this.#tone(inRegion(f)));
+      this.#drawLayer(g, path, countries, (f) => this.#tone(inRegion(f), f.key));
     }
 
     if (layers.rivers) this.#drawRivers(g, path, layers.rivers);
@@ -232,7 +237,7 @@ export class GameMap {
 
   #renderStates(root, { countries, states }, layers) {
     const isState = (f) => f.key in US_STATES;
-    const tone = (f) => this.#tone(isState(f));
+    const tone = (f) => this.#tone(isState(f), f.key);
     // On écarte Alaska/Hawaï (encarts) et les territoires (Porto Rico, Guam…) qui casseraient le cadrage.
     const contiguous = states.filter((f) => isState(f) && !isInset(f.key));
     const alaska = states.find((f) => f.key === '02');
