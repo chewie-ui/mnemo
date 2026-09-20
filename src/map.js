@@ -10,8 +10,11 @@ export const VIEW_W = 1000;
 export const VIEW_H = 620;
 const PAD = 16;
 const MICRO_AREA = 60; // surface projetée (px²) en dessous de laquelle on ajoute un marqueur cliquable
-const MARKER_R = 5; // rayon du marqueur de micro-État à l'écran, constant quel que soit le zoom
-const POINT_R = 5.5; // rayon d'une ville à l'écran, constant quel que soit le zoom
+// Sur écran tactile, les ronds sont plus gros : on vise au doigt, pas au curseur.
+const TOUCH = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+const MARKER_R = TOUCH ? 7 : 5; // rayon du marqueur de micro-État à l'écran, constant quel que soit le zoom
+const POINT_R = TOUCH ? 7.5 : 5.5; // rayon d'une ville à l'écran, constant quel que soit le zoom
+const MAX_ZOOM = 80; // assez pour séparer des ronds superposés (Antilles, micro-États d'Europe)
 
 // ─── Données (chargées à la demande, une seule fois) ───
 const cache = {};
@@ -302,7 +305,7 @@ export class GameMap {
   #setupZoom() {
     const root = select(this.root);
     this.zoomBehavior = zoom()
-      .scaleExtent([1, 10])
+      .scaleExtent([1, MAX_ZOOM])
       .translateExtent([[0, 0], [VIEW_W, VIEW_H]])
       .on('zoom', (e) => {
         root.attr('transform', e.transform);
