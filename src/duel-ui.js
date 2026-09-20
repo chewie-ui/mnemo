@@ -201,6 +201,9 @@ async function checkInbox() {
   badge.hidden = pending === 0;
   badge.textContent = String(pending);
   document.title = pending ? `(${pending}) Mnemo — Apprendre en jouant` : 'Mnemo — Apprendre en jouant';
+  // La bannière disparaît dès que l'invitation n'est plus en attente (acceptée, refusée, annulée).
+  const banner = $('invite-banner');
+  if (!banner.hidden && !inbox.invites.some((d) => String(d.id) === banner.dataset.duel)) banner.hidden = true;
   const fresh = inbox.invites.find((d) => !seen.has(d.id));
   if (fresh && !location.hash.startsWith('#/duel/') && $('screen-game').hidden) {
     for (const d of inbox.invites) seen.add(d.id);
@@ -210,6 +213,7 @@ async function checkInbox() {
 
 function showInviteBanner(duel) {
   const banner = $('invite-banner');
+  banner.dataset.duel = String(duel.id);
   banner.innerHTML = `
     <i data-lucide="swords" aria-hidden="true"></i>
     <div class="invite-text"><strong>${escapeHtml(duel.opponent.name)} te défie</strong><span>${escapeHtml(mapName(duel))}</span></div>

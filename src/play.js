@@ -53,8 +53,25 @@ function clearPending() {
   ui.confirmBar.hidden = true;
 }
 
+// Quitter un défi en cours = abandon : l'adversaire pourra finir et gagner.
+function forfeitIfNeeded(keepalive = false) {
+  const s = session;
+  if (!s?.duel || s.game.done || s.forfeited) return;
+  s.forfeited = true;
+  const params = new URLSearchParams({ action: 'forfeit' });
+  fetch(`${import.meta.env.BASE_URL}api/duels.php?${params}`, {
+    method: 'POST',
+    keepalive,
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' },
+    body: JSON.stringify({ id: s.duel.id }),
+  }).catch(() => {});
+}
+
+window.addEventListener('pagehide', () => forfeitIfNeeded(true));
+
 export function stopSession() {
   clearPending();
+  forfeitIfNeeded();
   if (session?.timer) clearInterval(session.timer);
   if (session?.poll) clearInterval(session.poll);
   session = null;
@@ -327,7 +344,8 @@ async function finishDuel(duel, stats) {
     let text;
     if (d.status === 'finished') {
       const outcome = d.winnerId === null ? 'Égalité parfaite !' : d.winnerId === me?.id ? 'Tu gagnes le défi ! +5 trophées' : `${d.opponent.name} gagne le défi.`;
-      text = `${outcome} — ${d.opponent.name} : ${d.them.score} % en ${formatTime(d.them.timeMs)}.`;
+      const forfeit = d.them.score === 0 && d.them.timeMs === 0;
+      text = `${outcome} — ${d.opponent.name} : ${forfeit ? 'a abandonné' : `${d.them.score} % en ${formatTime(d.them.timeMs)}`}.`;
     } else {
       text = `Résultat envoyé. ${d.opponent.name} n'a pas encore joué : le gagnant sera désigné quand il aura fini.`;
     }
@@ -360,7 +378,8 @@ document.addEventListener('keydown', (e) => {
 });
 
 $('btn-quit').addEventListener('click', () => {
-  location.hash = '#/';
+  if (session?.duel && !session.game.done && !window.confirm('Quitter le défi ? Tu abandonnes cette manche : ton adversaire pourra la finir et la gagner.')) return;
+  location.hash = session?.duel ? '#/amis' : '#/';
 });
 $('btn-home').addEventListener('click', () => {
   location.hash = '#/';

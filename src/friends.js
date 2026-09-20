@@ -62,8 +62,8 @@ export async function renderFriends() {
     <article class="region-card deck-card" role="listitem">
       <h3 class="name">${escapeHtml(d.opponent.name)}</h3>
       <p class="desc">${escapeHtml(mapName(d.region, d.mode))} · ${escapeHtml(formatDate(d.createdAt))}</p>
-      ${d.them.finished ? `<p class="deck-meta"><span>${escapeHtml(d.opponent.name)} : ${d.them.score} % en ${formatTime(d.them.timeMs)}</span></p>` : ''}
-      ${d.me.finished ? `<p class="deck-meta"><span>Toi : ${d.me.score} % en ${formatTime(d.me.timeMs)}</span></p>` : ''}
+      ${d.them.finished ? `<p class="deck-meta"><span>${escapeHtml(d.opponent.name)} : ${d.them.score === 0 && d.them.timeMs === 0 ? 'a abandonné' : `${d.them.score} % en ${formatTime(d.them.timeMs)}`}</span></p>` : ''}
+      ${d.me.finished ? `<p class="deck-meta"><span>Toi : ${d.me.score === 0 && d.me.timeMs === 0 ? 'abandon' : `${d.me.score} % en ${formatTime(d.me.timeMs)}`}</span></p>` : ''}
       <div class="actions">${actions}</div>
     </article>`;
 
