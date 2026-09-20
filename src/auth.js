@@ -59,6 +59,11 @@ export function changePassword(current, password) {
   return post('auth', 'password', { current, password });
 }
 
+export async function deleteAccount(password) {
+  await post('auth', 'delete', { password });
+  setUser(null);
+}
+
 export async function logout() {
   try {
     await post('auth', 'logout');

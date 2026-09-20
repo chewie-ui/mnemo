@@ -190,6 +190,37 @@ switch (action()) {
     ok(['ok' => true]);
   }
 
+  // Suppression du compte : mot de passe exigé, tout ce qui appartient à l'utilisateur part avec
+  // (parties, leçons, amis, défis, campagne). Suppressions explicites : on ne compte pas sur les cascades.
+  case 'delete': {
+    $uid = requireUser();
+    $password = (string) (input()['password'] ?? '');
+    $stmt = db()->prepare('SELECT password_hash FROM users WHERE id = ?');
+    $stmt->execute([$uid]);
+    $row = $stmt->fetch();
+    if (!$row || !password_verify($password, $row['password_hash'])) {
+      usleep(300000);
+      fail(403, 'Mot de passe incorrect.');
+    }
+    ensureResetTable();
+    $db = db();
+    $db->beginTransaction();
+    $db->prepare('DELETE FROM password_resets WHERE user_id = ?')->execute([$uid]);
+    $db->prepare('DELETE FROM campaign_progress WHERE user_id = ?')->execute([$uid]);
+    $db->prepare('DELETE FROM duel_results WHERE user_id = ? OR duel_id IN (SELECT id FROM duels WHERE challenger_id = ? OR opponent_id = ?)')->execute([$uid, $uid, $uid]);
+    $db->prepare('DELETE FROM duels WHERE challenger_id = ? OR opponent_id = ?')->execute([$uid, $uid]);
+    $db->prepare('DELETE FROM friendships WHERE user_id = ? OR friend_id = ?')->execute([$uid, $uid]);
+    $db->prepare('DELETE FROM cards WHERE deck_id IN (SELECT id FROM decks WHERE user_id = ?)')->execute([$uid]);
+    $db->prepare('DELETE FROM decks WHERE user_id = ?')->execute([$uid]);
+    $db->prepare('DELETE FROM games WHERE user_id = ?')->execute([$uid]);
+    $db->prepare('DELETE FROM users WHERE id = ?')->execute([$uid]);
+    $db->commit();
+    $_SESSION = [];
+    session_destroy();
+    setcookie(session_name(), '', ['expires' => time() - 3600, 'path' => '/']);
+    ok(['deleted' => true]);
+  }
+
   case 'logout': {
     $_SESSION = [];
     session_destroy();

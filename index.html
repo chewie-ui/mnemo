@@ -304,6 +304,25 @@
           </div>
         </section>
 
+        <section id="settings-danger" class="settings-section settings-danger" hidden>
+          <h2>Supprimer le compte</h2>
+          <div class="settings-row">
+            <span class="settings-text"><strong>Supprimer définitivement mon compte</strong><span class="muted">Records, trophées, campagne, leçons, amis et défis seront effacés. Cette action est irréversible.</span></span>
+            <button id="delete-open" class="btn btn-ghost btn-danger" type="button"><i data-lucide="trash-2" aria-hidden="true"></i><span>Supprimer mon compte</span></button>
+          </div>
+          <form id="delete-form" class="delete-form" novalidate hidden>
+            <div class="field">
+              <label for="delete-password">Confirme avec ton mot de passe</label>
+              <input id="delete-password" type="password" autocomplete="current-password" required />
+            </div>
+            <p id="delete-error" class="form-error" role="alert" hidden></p>
+            <div class="hero-actions">
+              <button id="delete-submit" class="btn btn-danger-solid" type="submit"><i data-lucide="trash-2" aria-hidden="true"></i><span>Supprimer définitivement</span></button>
+              <button id="delete-cancel" class="btn btn-ghost" type="button"><span>Annuler</span></button>
+            </div>
+          </form>
+        </section>
+
         <section class="settings-section">
           <h2>Données de ce navigateur</h2>
           <div class="settings-row">
