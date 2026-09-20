@@ -4,6 +4,7 @@ import { geoPath, geoAzimuthalEqualArea, geoNaturalEarth1, geoConicEqualArea, ge
 import { select } from 'd3-selection';
 import { zoom, zoomIdentity } from 'd3-zoom';
 import { feature } from 'topojson-client';
+import { Delaunay } from 'd3-delaunay';
 import { COUNTRIES, NAME_TO_ID, IGNORED_NAMES, US_STATES } from './data/countries.js';
 
 export const VIEW_W = 1000;
@@ -17,6 +18,10 @@ const MARKER_HIDE_PX = 28; // dès que l'île fait cette taille à l'écran, on 
 // Dézoomé, un simple point sur l'île (les traits de 100 repères feraient un fouillis) ;
 // à partir de ce zoom, le repère déporté avec son trait, qui a alors la place de se ranger.
 const CALLOUT_ZOOM = 2.5;
+// Zone cliquable autour d'une petite île : la portion d'océan la plus proche d'elle,
+// bornée à un carré (demi-côté en unités de la carte, 1000 de large). Plus petite sur la
+// carte du Monde, où tout est déjà serré.
+const ZONE = { continent: { half: 70, area: 500 }, world: { half: 26, area: 60 } };
 const DOT_R = TOUCH ? 5 : 3.5;
 // Emplacements candidats du cercle autour de l'île (distance et angle, en pixels écran).
 const CALLOUT_SLOTS = [22, 40, 60].flatMap((d) => [-60, -120, 0, 180, -30, -150, 60, 120, 90, -90].map((a) => [d * Math.cos((a * Math.PI) / 180), d * Math.sin((a * Math.PI) / 180)]));
@@ -78,6 +83,33 @@ function bboxPoints([w, s, e, n]) {
     coordinates.push([lon, s], [lon, n], [norm(w), lat], [norm(e), lat]);
   }
   return { type: 'MultiPoint', coordinates };
+}
+
+// Découpe un polygone par un rectangle (Sutherland–Hodgman).
+function clipRect(polygon, x0, y0, x1, y1) {
+  const edges = [
+    [(p) => p[0] >= x0, (a, b) => [x0, a[1] + ((b[1] - a[1]) * (x0 - a[0])) / (b[0] - a[0])]],
+    [(p) => p[0] <= x1, (a, b) => [x1, a[1] + ((b[1] - a[1]) * (x1 - a[0])) / (b[0] - a[0])]],
+    [(p) => p[1] >= y0, (a, b) => [a[0] + ((b[0] - a[0]) * (y0 - a[1])) / (b[1] - a[1]), y0]],
+    [(p) => p[1] <= y1, (a, b) => [a[0] + ((b[0] - a[0]) * (y1 - a[1])) / (b[1] - a[1]), y1]],
+  ];
+  let output = polygon;
+  for (const [inside, intersect] of edges) {
+    const input = output;
+    output = [];
+    for (let i = 0; i < input.length; i++) {
+      const cur = input[i];
+      const prev = input[(i + input.length - 1) % input.length];
+      if (inside(cur)) {
+        if (!inside(prev)) output.push(intersect(prev, cur));
+        output.push(cur);
+      } else if (inside(prev)) {
+        output.push(intersect(prev, cur));
+      }
+    }
+    if (!output.length) break;
+  }
+  return output;
 }
 
 const svgNS = 'http://www.w3.org/2000/svg';
@@ -188,7 +220,9 @@ export class GameMap {
       this.#drawLayer(g, path, layers.history, (f) => (f.key && !this.targetIds.has(f.key) ? 'context' : 'skip'));
       this.#drawLayer(g, path, layers.history, (f) => (this.targetIds.has(f.key) ? 'target' : 'skip'));
     } else {
-      const inRegion = (f) => Boolean(f.key) && (!r.continent || COUNTRIES[f.key]?.c === r.continent);
+      // Seuls les pays jouables (dans countries.js) sont des cibles : Groenland, Malouines
+    // ou Porto Rico restent du décor, même sur la carte du Monde.
+    const inRegion = (f) => Boolean(f.key) && Boolean(COUNTRIES[f.key]) && (!r.continent || COUNTRIES[f.key].c === r.continent);
       this.#drawLayer(g, path, countries, (f) => this.#tone(inRegion(f)));
     }
 
@@ -254,6 +288,7 @@ export class GameMap {
       if (clickable) this.#register(f.key, node);
       if (role === 'target') targets.push(f);
     }
+    this.#drawZones(g, path, targets);
     const markers = el('g', { class: 'markers' });
     g.appendChild(markers);
     for (const f of targets) {
@@ -264,7 +299,6 @@ export class GameMap {
       const projected = path.projection()(geoCentroid(f));
       if (!projected || !Number.isFinite(projected[0])) continue;
       const [cx, cy] = projected;
-      const [[x0, y0], [x1, y1]] = path.bounds(f);
       // Repère déporté : un trait part de l'île vers un cercle posé à côté, c'est lui qu'on clique.
       const group = el('g', { class: 'micro target', 'data-id': f.key });
       const leader = el('line', { class: 'leader', x1: cx, y1: cy, x2: cx, y2: cy });
@@ -273,9 +307,60 @@ export class GameMap {
       group.appendChild(circle);
       markers.appendChild(group);
       this.#register(f.key, group);
-      this.markers.push({ group, leader, circle, cx, cy, size: Math.max(x1 - x0, y1 - y0) });
+      // Taille « utile » = côté du carré de même surface : un archipel étalé mais minuscule
+      // (Kiribati) garde son repère, alors que sa boîte englobante est énorme.
+      this.markers.push({ group, leader, circle, cx, cy, size: Math.sqrt(path.area(f)) });
     }
     this.#placeMarkers(1);
+  }
+
+  // Zones autour des petites îles, comme sur une carte d'atlas : l'océan est partagé entre
+  // les cibles (chaque point revient à la plus proche), et seules les petites îles reçoivent
+  // leur cellule, découpée dans un carré. Dessinées sous les terres : un continent reste prioritaire.
+  #drawZones(g, path, targets) {
+    const { half, area } = this.region.continent === null ? ZONE.world : ZONE.continent;
+    const sites = [];
+    for (const f of targets) {
+      const c = path.projection()(geoCentroid(f));
+      if (c && Number.isFinite(c[0])) sites.push({ f, c, micro: path.area(f) < area });
+    }
+    if (!sites.some((s) => s.micro)) return;
+    // Seules les îles reçoivent une zone : autour d'un micro-État enclavé (Vatican, Andorre)
+    // il y a de la terre, pas de la mer. On sonde 8 points autour du centre.
+    const lands = [...g.querySelectorAll('path.land')];
+    const point = this.svg.createSVGPoint();
+    const isWater = (x, y, own) => {
+      point.x = x;
+      point.y = y;
+      return !lands.some((land) => land !== own && land.isPointInFill(point));
+    };
+    for (const site of sites) {
+      if (!site.micro) continue;
+      const own = g.querySelector(`path.land[data-id="${site.f.key}"]`);
+      let water = 0;
+      for (let a = 0; a < 8; a++) {
+        const angle = (a * Math.PI) / 4;
+        if (isWater(site.c[0] + Math.cos(angle) * half * 0.5, site.c[1] + Math.sin(angle) * half * 0.5, own)) water++;
+      }
+      site.island = water >= 7;
+    }
+    const delaunay = Delaunay.from(sites.map((s) => s.c));
+    const voronoi = delaunay.voronoi([-VIEW_W, -VIEW_H, VIEW_W * 2, VIEW_H * 2]);
+    const layer = el('g', { class: 'zones' });
+    const firstLand = g.querySelector('.land');
+    g.insertBefore(layer, firstLand);
+    sites.forEach((site, i) => {
+      if (!site.micro || !site.island) return;
+      const cell = voronoi.cellPolygon(i);
+      if (!cell) return;
+      const [cx, cy] = site.c;
+      const clipped = clipRect(cell, cx - half, cy - half, cx + half, cy + half);
+      if (clipped.length < 3) return;
+      const d = `M${clipped.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join('L')}Z`;
+      const node = el('path', { d, class: 'zone target', 'data-id': site.f.key });
+      layer.appendChild(node);
+      this.#register(site.f.key, node);
+    });
   }
 
   // Place les cercles des repères pour un niveau de zoom donné : chacun prend le premier

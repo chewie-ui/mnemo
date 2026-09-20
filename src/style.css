@@ -766,6 +766,30 @@ p {
   fill: #dfe6ea;
 }
 
+/* Zone cliquable autour d'une petite île (sous les terres). */
+.zone {
+  fill: rgb(255 255 255 / 0.001);
+  stroke: #d97b2b;
+  stroke-width: 1.2;
+  stroke-dasharray: 5 4;
+  vector-effect: non-scaling-stroke;
+  cursor: pointer;
+  transition: fill 150ms ease;
+}
+
+.zone:not([data-state]):hover {
+  fill: rgb(255 255 255 / 0.35);
+}
+
+.zone[data-state] {
+  fill-opacity: 0.45;
+}
+
+.zone.flash {
+  fill: var(--state-failed);
+  fill-opacity: 0.45;
+}
+
 /* Repère déporté d'une petite île : trait + cercle cliquable. */
 .micro {
   cursor: pointer;
