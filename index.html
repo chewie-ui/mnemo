@@ -217,6 +217,15 @@
       <div id="duel-body"></div>
     </main>
 
+    <!-- Confirmation d'une nouvelle adresse e-mail (lien reçu) -->
+    <main id="screen-confirm" class="screen container page" hidden>
+      <div class="page-head">
+        <a class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1>Nouvelle adresse e-mail</h1>
+      </div>
+      <div id="confirm-body" class="reset-form"></div>
+    </main>
+
     <!-- Nouveau mot de passe (lien reçu par e-mail) -->
     <main id="screen-reset" class="screen container page" hidden>
       <div class="page-head">
@@ -304,7 +313,11 @@
               </div>
             </div>
             <p id="email-error" class="form-error" role="alert" hidden></p>
-            <button id="email-submit" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Changer l’adresse</span></button>
+            <p id="email-pending" class="form-success" role="status" hidden></p>
+            <div class="hero-actions">
+              <button id="email-submit" class="btn btn-primary" type="submit"><i data-lucide="mail" aria-hidden="true"></i><span>Envoyer le lien de confirmation</span></button>
+              <button id="email-cancel" class="btn btn-ghost" type="button" hidden><span>Annuler la demande</span></button>
+            </div>
           </form>
           <form id="password-form" class="password-form" novalidate hidden>
             <h3>Changer de mot de passe</h3>

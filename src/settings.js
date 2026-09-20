@@ -1,6 +1,7 @@
 // Réglages : thème (système / clair / sombre), mode « confirmer », compte, données locales.
 // Tout est propre à l'appareil et gardé dans localStorage.
-import { currentUser, onAuthChange, logout, changePassword, deleteAccount, renameUser, changeEmail } from './auth.js';
+import { currentUser, onAuthChange, logout, changePassword, deleteAccount, renameUser, requestEmailChange, cancelEmailChange, pendingEmailAddress } from './auth.js';
+import { escapeHtml } from './ui.js';
 import { ApiError } from './api.js';
 import { openAuth } from './account.js';
 import { $, refreshIcons, toast, setLoading } from './ui.js';
@@ -64,8 +65,25 @@ function renderAccount() {
     $('settings-name').textContent = user.name;
     $('settings-email').textContent = user.email ?? '';
     $('name-input').value = user.name;
-    $('email-input').value = user.email ?? '';
+    $('email-input').value = pendingEmailAddress() ?? user.email ?? '';
     $('email-password').value = '';
+    renderPendingEmail();
+  }
+}
+
+// Demande en cours : on le dit, avec de quoi l'annuler.
+function renderPendingEmail(debugLink = null) {
+  const pending = pendingEmailAddress();
+  const note = $('email-pending');
+  note.hidden = !pending;
+  $('email-cancel').hidden = !pending;
+  if (!pending) return;
+  note.innerHTML = `Un lien de confirmation a été envoyé à <strong>${escapeHtml(pending)}</strong>. L’adresse changera quand tu l’auras ouvert (valable 24 h).`;
+  if (debugLink) {
+    const a = document.createElement('a');
+    a.href = debugLink;
+    a.textContent = 'Ouvrir le lien (mode local)';
+    note.append(' ', a);
   }
 }
 
@@ -150,13 +168,28 @@ export function initSettings() {
     error.hidden = true;
     setLoading($('email-submit'), true);
     try {
-      const user = await changeEmail(email, password);
+      const res = await requestEmailChange(email, password);
       $('email-password').value = '';
-      toast(`Adresse changée : ${user.email}.`);
+      renderPendingEmail(res.debugLink ?? null);
+      toast('Lien de confirmation envoyé.');
     } catch (err) {
       fail(err instanceof ApiError ? err.message : 'Une erreur est survenue. Réessaie.');
     } finally {
       setLoading($('email-submit'), false);
+    }
+  });
+
+  $('email-cancel').addEventListener('click', async (e) => {
+    setLoading(e.currentTarget, true);
+    try {
+      await cancelEmailChange();
+      $('email-input').value = currentUser()?.email ?? '';
+      renderPendingEmail();
+      toast('Demande annulée.');
+    } catch {
+      toast('Annulation impossible pour le moment.');
+    } finally {
+      setLoading(e.currentTarget, false);
     }
   });
 

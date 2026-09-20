@@ -25,7 +25,8 @@ function setUser(next) {
 export async function loadUser() {
   if (known) return user;
   try {
-    const { user: u } = await get('auth', 'me');
+    const { user: u, pendingEmail: p } = await get('auth', 'me');
+    pendingEmail = p ?? null;
     setUser(u ?? null);
   } catch {
     setUser(null);
@@ -61,10 +62,26 @@ export async function renameUser(name) {
   return u;
 }
 
-export async function changeEmail(email, password) {
-  const { user: u } = await post('auth', 'email', { email, password });
-  setUser(u);
-  return u;
+// Adresse en attente de confirmation (renvoyée par « me » et par la demande de changement).
+let pendingEmail = null;
+export const pendingEmailAddress = () => pendingEmail;
+
+export async function requestEmailChange(email, password) {
+  const res = await post('auth', 'email', { email, password });
+  pendingEmail = res.pendingEmail ?? null;
+  return res;
+}
+
+export async function cancelEmailChange() {
+  await post('auth', 'cancel-email');
+  pendingEmail = null;
+}
+
+export async function confirmEmail(token) {
+  const res = await post('auth', 'confirm-email', { token });
+  if (user && user.id === res.userId) setUser({ ...user, email: res.email });
+  pendingEmail = null;
+  return res;
 }
 
 export function changePassword(current, password) {

@@ -23,6 +23,30 @@ function ensureResetTable(): void {
         expires_at TEXT NOT NULL, used_at TEXT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)');
 }
 
+const EMAIL_CHANGE_TTL = 86400; // un lien de confirmation vaut 24 h
+
+function ensureEmailChangeTable(): void {
+  $mysql = str_starts_with(config()['dsn'], 'mysql:');
+  db()->exec($mysql
+    ? 'CREATE TABLE IF NOT EXISTS email_changes (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, user_id INT UNSIGNED NOT NULL, new_email VARCHAR(190) NOT NULL,
+        token_hash CHAR(64) NOT NULL UNIQUE, expires_at DATETIME NOT NULL, used_at DATETIME NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX (user_id), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    : 'CREATE TABLE IF NOT EXISTS email_changes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, new_email TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, used_at TEXT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)');
+}
+
+// Nouvelle adresse en attente de confirmation (ou null).
+function pendingEmail(int $uid): ?string {
+  ensureEmailChangeTable();
+  $stmt = db()->prepare('SELECT new_email FROM email_changes WHERE user_id = ? AND used_at IS NULL AND expires_at > ? ORDER BY id DESC LIMIT 1');
+  $stmt->execute([$uid, gmdate('Y-m-d H:i:s')]);
+  $v = $stmt->fetchColumn();
+  return $v === false ? null : $v;
+}
+
 // En production, mail() de l'hébergeur ; en local (SQLite, pas d'expéditeur), le message est
 // écrit dans api/data/mail.log et le lien renvoyé au client pour pouvoir tester.
 function sendMail(string $to, string $subject, string $body): bool {
@@ -66,7 +90,7 @@ switch (action()) {
       session_destroy();
       ok(['user' => null]);
     }
-    ok(['user' => publicUser($row)]);
+    ok(['user' => publicUser($row), 'pendingEmail' => pendingEmail($uid)]);
   }
 
   case 'register': {
@@ -182,31 +206,73 @@ switch (action()) {
     ok(['user' => publicUser($stmt->fetch())]);
   }
 
-  // Changement d'adresse e-mail : mot de passe exigé, adresse valide et libre.
+  // Changement d'adresse e-mail : mot de passe exigé, adresse valide et libre ; l'adresse ne
+  // devient effective qu'après clic sur le lien envoyé à la nouvelle adresse.
   case 'email': {
     $uid = requireUser();
     $in = input();
     $email = mb_strtolower(text($in['email'] ?? '', 190));
     $password = (string) ($in['password'] ?? '');
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) fail(422, 'Adresse e-mail invalide.');
-    $stmt = db()->prepare('SELECT email, password_hash FROM users WHERE id = ?');
+    $stmt = db()->prepare('SELECT email, name, password_hash FROM users WHERE id = ?');
     $stmt->execute([$uid]);
     $row = $stmt->fetch();
     if (!$row || !password_verify($password, $row['password_hash'])) {
       usleep(300000);
       fail(403, 'Mot de passe incorrect.');
     }
-    if ($email !== $row['email']) {
-      $stmt = db()->prepare('SELECT id FROM users WHERE email = ? AND id <> ?');
-      $stmt->execute([$email, $uid]);
-      if ($stmt->fetch()) fail(409, 'Un compte existe déjà avec cette adresse.');
-      db()->prepare('UPDATE users SET email = ? WHERE id = ?')->execute([$email, $uid]);
-      ensureResetTable();
-      db()->prepare('DELETE FROM password_resets WHERE user_id = ?')->execute([$uid]);
-    }
-    $stmt = db()->prepare('SELECT id, email, name, trophies FROM users WHERE id = ?');
-    $stmt->execute([$uid]);
-    ok(['user' => publicUser($stmt->fetch())]);
+    if ($email === $row['email']) fail(422, 'C’est déjà ton adresse actuelle.');
+    $stmt = db()->prepare('SELECT id FROM users WHERE email = ? AND id <> ?');
+    $stmt->execute([$email, $uid]);
+    if ($stmt->fetch()) fail(409, 'Un compte existe déjà avec cette adresse.');
+    ensureEmailChangeTable();
+    $now = time();
+    $recent = db()->prepare('SELECT COUNT(*) FROM email_changes WHERE user_id = ? AND created_at > ?');
+    $recent->execute([$uid, gmdate('Y-m-d H:i:s', $now - 3600)]);
+    if ((int) $recent->fetchColumn() >= RESET_MAX_PER_HOUR) fail(429, 'Trop de demandes. Réessaie dans une heure.');
+    // Une seule demande en cours : la nouvelle remplace les précédentes.
+    db()->prepare('DELETE FROM email_changes WHERE user_id = ? AND used_at IS NULL')->execute([$uid]);
+    $token = bin2hex(random_bytes(32));
+    db()->prepare('INSERT INTO email_changes (user_id, new_email, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)')
+      ->execute([$uid, $email, hash('sha256', $token), gmdate('Y-m-d H:i:s', $now + EMAIL_CHANGE_TTL), gmdate('Y-m-d H:i:s', $now)]);
+    $link = siteUrl() . '/#/confirm-email/' . $token;
+    $body = "Bonjour {$row['name']},\n\nPour confirmer que cette adresse devient celle de ton compte Mnemo, ouvre ce lien (valable 24 heures) :\n$link\n\n"
+      . "Si tu n'es pas à l'origine de cette demande, ignore cet e-mail : rien ne changera.\n";
+    if (!sendMail($email, 'Mnemo — confirme ta nouvelle adresse', $body)) fail(500, 'Envoi de l’e-mail impossible pour le moment.');
+    $out = ['pendingEmail' => $email];
+    if (!config()['mailFrom'] || str_starts_with(config()['dsn'], 'sqlite:')) $out['debugLink'] = $link;
+    ok($out);
+  }
+
+  // Annule la demande de changement d'adresse en cours.
+  case 'cancel-email': {
+    $uid = requireUser();
+    ensureEmailChangeTable();
+    db()->prepare('DELETE FROM email_changes WHERE user_id = ? AND used_at IS NULL')->execute([$uid]);
+    ok(['ok' => true]);
+  }
+
+  // Clic sur le lien reçu à la nouvelle adresse : elle devient effective. Pas besoin d'être connecté.
+  case 'confirm-email': {
+    $token = text(input()['token'] ?? '', 128);
+    if (!preg_match('/^[a-f0-9]{64}$/', $token)) fail(422, 'Lien invalide.');
+    ensureEmailChangeTable();
+    $stmt = db()->prepare('SELECT id, user_id, new_email, expires_at, used_at FROM email_changes WHERE token_hash = ?');
+    $stmt->execute([hash('sha256', $token)]);
+    $change = $stmt->fetch();
+    if (!$change || $change['used_at'] !== null || $change['expires_at'] < gmdate('Y-m-d H:i:s')) fail(410, 'Ce lien a expiré ou a déjà servi. Refais la demande depuis les réglages.');
+    $stmt = db()->prepare('SELECT id FROM users WHERE email = ? AND id <> ?');
+    $stmt->execute([$change['new_email'], (int) $change['user_id']]);
+    if ($stmt->fetch()) fail(409, 'Un compte utilise déjà cette adresse.');
+    $db = db();
+    $db->beginTransaction();
+    $db->prepare('UPDATE users SET email = ? WHERE id = ?')->execute([$change['new_email'], (int) $change['user_id']]);
+    $db->prepare('UPDATE email_changes SET used_at = ? WHERE id = ?')->execute([gmdate('Y-m-d H:i:s'), (int) $change['id']]);
+    $db->prepare('DELETE FROM email_changes WHERE user_id = ? AND id <> ?')->execute([(int) $change['user_id'], (int) $change['id']]);
+    ensureResetTable();
+    $db->prepare('DELETE FROM password_resets WHERE user_id = ?')->execute([(int) $change['user_id']]);
+    $db->commit();
+    ok(['email' => $change['new_email'], 'userId' => (int) $change['user_id']]);
   }
 
   // Changement depuis les réglages : l'ancien mot de passe est exigé.
@@ -246,6 +312,8 @@ switch (action()) {
     ensureResetTable();
     $db = db();
     $db->beginTransaction();
+    ensureEmailChangeTable();
+    $db->prepare('DELETE FROM email_changes WHERE user_id = ?')->execute([$uid]);
     $db->prepare('DELETE FROM password_resets WHERE user_id = ?')->execute([$uid]);
     $db->prepare('DELETE FROM campaign_progress WHERE user_id = ?')->execute([$uid]);
     $db->prepare('DELETE FROM duel_results WHERE user_id = ? OR duel_id IN (SELECT id FROM duels WHERE challenger_id = ? OR opponent_id = ?)')->execute([$uid, $uid, $uid]);

@@ -2,12 +2,12 @@
 import {
   createIcons, Globe, ArrowLeft, Plus, Minus, Maximize, RotateCcw, Trophy, Map, MapPin, Building2, Waves, Sailboat,
   Landmark, Flag, MapPinned, Search, CircleUserRound, BarChart3, NotebookPen, LogOut, Play, X, Check, Trash2, Pencil,
-  BookOpen, ListChecks, Clock, Eye, Languages, Coins, Castle, ChevronDown, ChevronUp, Users, Swords, UserPlus, Star, Award, Lock, ArrowRight, Settings, Monitor, Sun, Moon,
+  BookOpen, ListChecks, Clock, Eye, Languages, Coins, Castle, ChevronDown, ChevronUp, Users, Swords, UserPlus, Star, Award, Lock, ArrowRight, Settings, Monitor, Sun, Moon, Mail,
 } from 'lucide';
 
 const icons = {
   Globe, ArrowLeft, Plus, Minus, Maximize, RotateCcw, Trophy, Map, MapPin, Building2, Waves, Sailboat, Landmark, Flag,
-  MapPinned, Search, CircleUserRound, BarChart3, NotebookPen, LogOut, Play, X, Check, Trash2, Pencil, BookOpen, ListChecks, Clock, Eye, Languages, Coins, Castle, ChevronDown, ChevronUp, Users, Swords, UserPlus, Star, Award, Lock, ArrowRight, Settings, Monitor, Sun, Moon,
+  MapPinned, Search, CircleUserRound, BarChart3, NotebookPen, LogOut, Play, X, Check, Trash2, Pencil, BookOpen, ListChecks, Clock, Eye, Languages, Coins, Castle, ChevronDown, ChevronUp, Users, Swords, UserPlus, Star, Award, Lock, ArrowRight, Settings, Monitor, Sun, Moon, Mail,
 };
 
 export const $ = (id) => document.getElementById(id);

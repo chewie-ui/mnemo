@@ -3,7 +3,7 @@ import { initSettings, renderSettings } from './settings.js';
 import { MODES, regionById } from './data/regions.js';
 import { loadUser, onAuthChange, currentUser } from './auth.js';
 import { refreshServerBests } from './scores.js';
-import { initAccount, initReset, renderReset } from './account.js';
+import { initAccount, initReset, renderReset, renderConfirmEmail } from './account.js';
 import { renderHome } from './home.js';
 import { startGame, stopSession } from './play.js';
 import { renderStats } from './stats.js';
@@ -44,6 +44,9 @@ function route() {
   } else if ((m = hash.match(/^#\/reset\/([a-f0-9]{64})$/))) {
     showScreen('reset');
     renderReset(m[1]);
+  } else if ((m = hash.match(/^#\/confirm-email\/([a-f0-9]{64})$/))) {
+    showScreen('confirm');
+    renderConfirmEmail(m[1]);
   } else if (hash === '#/reglages') {
     showScreen('settings');
     renderSettings();
@@ -108,7 +111,7 @@ async function boot() {
   initFriends();
   window.addEventListener('hashchange', route);
   // Les pages qui lisent une leçon attendent de savoir qui est connecté (stockage local ou serveur).
-  if (!/^#\/(memos|study|quiz)\//.test(location.hash)) route();
+  if (!/^#\/(memos|study|quiz|confirm-email)\//.test(location.hash)) route();
   // Le compte se charge en arrière-plan ; l'accueil se rafraîchit quand on sait qui joue.
   await loadUser();
   await refreshServerBests();

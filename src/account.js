@@ -1,7 +1,7 @@
 // Bouton compte (en haut à droite), menu, et fenêtre de connexion / inscription.
-import { currentUser, onAuthChange, login, register, logout, forgotPassword, resetPassword } from './auth.js';
+import { currentUser, onAuthChange, login, register, logout, forgotPassword, resetPassword, confirmEmail } from './auth.js';
 import { ApiError } from './api.js';
-import { $, setLoading, toast } from './ui.js';
+import { $, setLoading, toast, escapeHtml, refreshIcons } from './ui.js';
 
 const ui = {
   btn: $('user-btn'),
@@ -133,6 +133,30 @@ export function renderReset(token) {
   error.hidden = true;
   form.dataset.token = token;
   $('reset-password').focus();
+}
+
+// Écran ouvert depuis le lien de confirmation d'adresse (#/confirm-email/<jeton>).
+// Le changement d'adresse met à jour l'utilisateur, ce qui refait passer le routeur :
+// on garde le résultat par jeton pour ne pas consommer le lien deux fois.
+const confirmations = new Map();
+
+export async function renderConfirmEmail(token) {
+  const body = $('confirm-body');
+  body.innerHTML = '<p class="note">Vérification du lien…</p>';
+  try {
+    if (!confirmations.has(token)) confirmations.set(token, confirmEmail(token));
+    const res = await confirmations.get(token);
+    body.innerHTML = `
+      <p class="form-success">Adresse confirmée : <strong>${escapeHtml(res.email)}</strong>.</p>
+      <p class="note">C’est désormais celle qui sert à te connecter et à récupérer ton mot de passe.</p>
+      <div class="hero-actions"><a class="btn btn-primary" href="#/"><span>Retour à l’accueil</span></a>${currentUser() ? '' : '<button id="confirm-login" class="btn btn-ghost" type="button"><span>Se connecter</span></button>'}</div>`;
+    body.querySelector('#confirm-login')?.addEventListener('click', () => openAuth('login'));
+  } catch (err) {
+    body.innerHTML = `
+      <p class="form-error">${escapeHtml(err instanceof ApiError ? err.message : 'Une erreur est survenue. Réessaie.')}</p>
+      <div class="hero-actions"><a class="btn btn-primary" href="#/reglages"><span>Aller aux réglages</span></a></div>`;
+  }
+  refreshIcons();
 }
 
 export function initReset() {
