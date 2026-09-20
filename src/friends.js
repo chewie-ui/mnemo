@@ -43,9 +43,9 @@ export async function renderFriends() {
   const incoming = data.friends.filter((f) => f.status === 'pending' && f.incoming);
   const outgoing = data.friends.filter((f) => f.status === 'pending' && !f.incoming);
   const accepted = data.friends.filter((f) => f.status === 'accepted');
-  const toPlay = data.duels.filter((d) => d.status !== 'declined' && d.status !== 'finished' && !d.me.finished && (d.isChallenger || d.status === 'accepted'));
+  const toPlay = data.duels.filter((d) => d.status === 'accepted' && !d.me.finished);
   const toAccept = data.duels.filter((d) => d.status === 'pending' && !d.isChallenger);
-  const waiting = data.duels.filter((d) => d.status !== 'declined' && d.status !== 'finished' && d.me.finished);
+  const waiting = data.duels.filter((d) => (d.status === 'pending' && d.isChallenger) || (d.status === 'accepted' && d.me.finished));
   const finished = data.duels.filter((d) => d.status === 'finished' || d.status === 'declined').slice(0, 15);
 
   const rankRows = data.ranking
@@ -80,9 +80,9 @@ export async function renderFriends() {
     </div>
     <p class="note">Trophées : 1 par tranche de 10 % du premier coup sur une partie, +2 pour un sans-faute, le double sur les grandes cartes (40 questions ou plus), +5 par défi gagné.</p>
 
-    ${toAccept.length ? `<h2 class="stats-section">Défis reçus</h2><div class="region-grid" role="list">${toAccept.map((d) => duelCard(d, `<button class="btn btn-primary" data-accept="${d.id}"><i data-lucide="swords" aria-hidden="true"></i><span>Accepter et jouer</span></button><button class="btn btn-ghost" data-decline="${d.id}">Refuser</button>`)).join('')}</div>` : ''}
+    ${toAccept.length ? `<h2 class="stats-section">Défis reçus</h2><div class="region-grid" role="list">${toAccept.map((d) => duelCard(d, `<a class="btn btn-primary" href="#/duel/${d.id}"><i data-lucide="swords" aria-hidden="true"></i><span>Voir le défi</span></a><button class="btn btn-ghost" data-decline="${d.id}">Refuser</button>`)).join('')}</div>` : ''}
     ${toPlay.length ? `<h2 class="stats-section">À jouer</h2><div class="region-grid" role="list">${toPlay.map((d) => duelCard(d, `<a class="btn btn-primary" href="#/duel/${d.id}"><i data-lucide="play" aria-hidden="true"></i><span>Jouer</span></a>`)).join('')}</div>` : ''}
-    ${waiting.length ? `<h2 class="stats-section">En attente de l'adversaire</h2><div class="region-grid" role="list">${waiting.map((d) => duelCard(d, `<span class="muted small">${d.status === 'pending' ? 'Pas encore accepté' : 'En cours de son côté'}</span>`)).join('')}</div>` : ''}
+    ${waiting.length ? `<h2 class="stats-section">En attente de l'adversaire</h2><div class="region-grid" role="list">${waiting.map((d) => duelCard(d, d.status === 'pending' ? `<a class="btn btn-ghost" href="#/duel/${d.id}">Salle d'attente</a>` : '<span class="muted small">En cours de son côté</span>')).join('')}</div>` : ''}
 
     <h2 class="stats-section">Classement entre amis</h2>
     <div class="table-wrap">
@@ -251,7 +251,7 @@ export function initFriends() {
     try {
       const { duel } = await post('duels', 'create', { opponentId: challengeTarget, region: $('challenge-region').value, mode: $('challenge-mode').value });
       closeChallenge();
-      // Le lanceur joue tout de suite ; l'ami jouera quand il acceptera.
+      // Salle d'attente : la partie démarre pour les deux quand l'ami accepte.
       location.hash = `#/duel/${duel.id}`;
     } catch (err) {
       $('challenge-error').textContent = errorText(err, 'Impossible de lancer le défi.');
@@ -260,15 +260,4 @@ export function initFriends() {
       setLoading(btn, false);
     }
   });
-}
-
-// Charge un défi et lance la partie correspondante.
-export async function loadDuel(id) {
-  try {
-    const { duel } = await get('duels', 'get', { id });
-    return duel;
-  } catch (err) {
-    toast(errorText(err, 'Défi introuvable.'));
-    return null;
-  }
 }

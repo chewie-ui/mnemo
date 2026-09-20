@@ -20,7 +20,7 @@
         <a href="#/#histoire">Histoire</a>
         <a href="#/#pays">Pays en détail</a>
         <a href="#/memos">Mes mémos</a>
-        <a href="#/amis">Amis</a>
+        <a href="#/amis">Amis <span id="nav-badge" class="badge" hidden>0</span></a>
       </nav>
       <div class="user-area">
         <button id="user-btn" class="btn btn-ghost user-btn" type="button" aria-haspopup="menu" aria-expanded="false">
@@ -187,6 +187,11 @@
       <div id="study-body"></div>
     </main>
 
+    <!-- Défi : invitation, attente, écran VS -->
+    <main id="screen-duel" class="screen container page" hidden>
+      <div id="duel-body"></div>
+    </main>
+
     <!-- Amis, défis, classement -->
     <main id="screen-friends" class="screen container page" hidden>
       <div class="page-head">
@@ -278,6 +283,7 @@
       </section>
     </div>
 
+    <div id="invite-banner" class="invite-banner" role="status" hidden></div>
     <div id="toast" class="toast" role="status" hidden></div>
 
     <script type="module" src="/src/main.js"></script>

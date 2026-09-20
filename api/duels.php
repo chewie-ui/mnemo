@@ -8,10 +8,11 @@ $uid = requireUser();
 
 const DUEL_WIN_TROPHIES = 5;
 
+const DUEL_SELECT = 'SELECT d.*, c.name AS challenger_name, c.trophies AS challenger_trophies, o.name AS opponent_name, o.trophies AS opponent_trophies
+    FROM duels d JOIN users c ON c.id = d.challenger_id JOIN users o ON o.id = d.opponent_id';
+
 function duelRow(int $uid, int $id): array {
-  $stmt = db()->prepare('SELECT d.*, c.name AS challenger_name, o.name AS opponent_name
-    FROM duels d JOIN users c ON c.id = d.challenger_id JOIN users o ON o.id = d.opponent_id
-    WHERE d.id = ? AND (d.challenger_id = ? OR d.opponent_id = ?)');
+  $stmt = db()->prepare(DUEL_SELECT . ' WHERE d.id = ? AND (d.challenger_id = ? OR d.opponent_id = ?)');
   $stmt->execute([$id, $uid, $uid]);
   $d = $stmt->fetch();
   if (!$d) fail(404, 'Défi introuvable.');
@@ -40,17 +41,24 @@ function publicDuel(int $uid, array $d): array {
   return [
     'id' => (int) $d['id'], 'region' => $d['region'], 'mode' => $d['mode'], 'seed' => (int) $d['seed'], 'status' => $d['status'],
     'createdAt' => $d['created_at'], 'isChallenger' => $isChallenger,
-    'opponent' => ['id' => $otherId, 'name' => $isChallenger ? $d['opponent_name'] : $d['challenger_name']],
+    'opponent' => [
+      'id' => $otherId,
+      'name' => $isChallenger ? $d['opponent_name'] : $d['challenger_name'],
+      'trophies' => (int) ($isChallenger ? $d['opponent_trophies'] : $d['challenger_trophies']),
+    ],
+    'self' => [
+      'id' => $uid,
+      'name' => $isChallenger ? $d['challenger_name'] : $d['opponent_name'],
+      'trophies' => (int) ($isChallenger ? $d['challenger_trophies'] : $d['opponent_trophies']),
+    ],
     'me' => $res[$uid] ?? $empty, 'them' => $res[$otherId] ?? $empty,
     'winnerId' => $d['winner_id'] === null ? null : (int) $d['winner_id'],
   ];
 }
 
-// Le défi est-il jouable par cet utilisateur maintenant ?
+// Le défi est-il jouable maintenant ? Seulement une fois accepté par l'adversaire.
 function playable(int $uid, array $d): bool {
-  if ($d['status'] === 'declined' || $d['status'] === 'finished') return false;
-  // Le lanceur peut jouer tout de suite ; l'adversaire doit d'abord accepter.
-  return (int) $d['challenger_id'] === $uid || $d['status'] === 'accepted';
+  return $d['status'] === 'accepted';
 }
 
 switch (action()) {
@@ -74,11 +82,30 @@ switch (action()) {
   }
 
   case 'list': {
-    $stmt = db()->prepare('SELECT d.*, c.name AS challenger_name, o.name AS opponent_name
-      FROM duels d JOIN users c ON c.id = d.challenger_id JOIN users o ON o.id = d.opponent_id
-      WHERE d.challenger_id = ? OR d.opponent_id = ? ORDER BY d.id DESC LIMIT 50');
+    $stmt = db()->prepare(DUEL_SELECT . ' WHERE d.challenger_id = ? OR d.opponent_id = ? ORDER BY d.id DESC LIMIT 50');
     $stmt->execute([$uid, $uid]);
     ok(['duels' => array_map(fn($d) => publicDuel($uid, $d), $stmt->fetchAll())]);
+  }
+
+  // Invitations en attente pour moi (notification) et défis acceptés que je n'ai pas encore joués.
+  case 'inbox': {
+    $stmt = db()->prepare(DUEL_SELECT . ' WHERE d.opponent_id = ? AND d.status = ? ORDER BY d.id DESC LIMIT 10');
+    $stmt->execute([$uid, 'pending']);
+    $invites = array_map(fn($d) => publicDuel($uid, $d), $stmt->fetchAll());
+    $stmt = db()->prepare(DUEL_SELECT . ' JOIN duel_results r ON r.duel_id = d.id AND r.user_id = ?
+      WHERE (d.challenger_id = ? OR d.opponent_id = ?) AND d.status = ? AND r.finished_at IS NULL ORDER BY d.id DESC LIMIT 10');
+    $stmt->execute([$uid, $uid, $uid, 'accepted']);
+    $ready = array_map(fn($d) => publicDuel($uid, $d), $stmt->fetchAll());
+    ok(['invites' => $invites, 'ready' => $ready]);
+  }
+
+  // Le lanceur retire son invitation tant qu'elle n'est pas acceptée.
+  case 'cancel': {
+    $d = duelRow($uid, (int) (input()['id'] ?? 0));
+    if ((int) $d['challenger_id'] !== $uid || $d['status'] !== 'pending') fail(409, 'Ce défi ne peut plus être annulé.');
+    db()->prepare('DELETE FROM duel_results WHERE duel_id = ?')->execute([$d['id']]);
+    db()->prepare('DELETE FROM duels WHERE id = ?')->execute([$d['id']]);
+    ok(['cancelled' => (int) $d['id']]);
   }
 
   case 'get': {

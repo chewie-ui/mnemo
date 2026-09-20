@@ -7,7 +7,8 @@ import { renderHome } from './home.js';
 import { startGame, stopSession } from './play.js';
 import { renderStats } from './stats.js';
 import { renderMemosList, renderDeckEditor, renderStudy } from './memos-ui.js';
-import { renderFriends, initFriends, loadDuel } from './friends.js';
+import { renderFriends, initFriends } from './friends.js';
+import { openDuel, stopDuelWatch, startInboxWatch, stopInboxWatch } from './duel-ui.js';
 import { showScreen, refreshIcons, toast } from './ui.js';
 
 function route() {
@@ -23,8 +24,9 @@ function route() {
       return;
     }
   }
+  stopDuelWatch();
   if ((m = hash.match(/^#\/duel\/(\d+)$/))) {
-    showScreen('game');
+    stopSession();
     startDuel(Number(m[1]));
     return;
   }
@@ -54,26 +56,15 @@ function route() {
   }
 }
 
-// Un défi : on attend de connaître l'utilisateur, puis on lance la même partie que l'adversaire.
+// Un défi : on attend de connaître l'utilisateur, puis l'écran qui correspond à son état.
 async function startDuel(id) {
   await loadUser();
   if (!currentUser()) {
+    toast('Connecte-toi pour jouer ce défi.');
     location.hash = '#/amis';
     return;
   }
-  const duel = await loadDuel(id);
-  if (!duel) {
-    location.hash = '#/amis';
-    return;
-  }
-  const region = regionById(duel.region);
-  const playable = duel.status !== 'declined' && duel.status !== 'finished' && !duel.me.finished && (duel.isChallenger || duel.status === 'accepted');
-  if (!region || !playable) {
-    toast(duel.me.finished ? 'Tu as déjà joué ce défi.' : 'Ce défi n’est pas jouable.');
-    location.hash = '#/amis';
-    return;
-  }
-  startGame(region, duel.mode, duel);
+  openDuel(id);
 }
 
 async function boot() {
@@ -85,8 +76,11 @@ async function boot() {
   // Le compte se charge en arrière-plan ; l'accueil se rafraîchit quand on sait qui joue.
   await loadUser();
   await refreshServerBests();
-  onAuthChange(async () => {
+  if (currentUser()) startInboxWatch();
+  onAuthChange(async (user) => {
     await refreshServerBests();
+    if (user) startInboxWatch();
+    else stopInboxWatch();
     route();
   });
   if (!location.hash.startsWith('#/play/') && !location.hash.startsWith('#/duel/')) route();
