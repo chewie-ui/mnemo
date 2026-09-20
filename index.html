@@ -217,6 +217,27 @@
       <div id="duel-body"></div>
     </main>
 
+    <!-- Nouveau mot de passe (lien reçu par e-mail) -->
+    <main id="screen-reset" class="screen container page" hidden>
+      <div class="page-head">
+        <a class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1>Nouveau mot de passe</h1>
+      </div>
+      <form id="reset-form" class="auth-form reset-form" novalidate>
+        <p class="note">Choisis un nouveau mot de passe pour ton compte. Tu seras connecté dans la foulée.</p>
+        <div class="field">
+          <label for="reset-password">Nouveau mot de passe <span class="muted">(8 caractères minimum)</span></label>
+          <input id="reset-password" type="password" autocomplete="new-password" required minlength="8" />
+        </div>
+        <div class="field">
+          <label for="reset-confirm">Confirme le mot de passe</label>
+          <input id="reset-confirm" type="password" autocomplete="new-password" required minlength="8" />
+        </div>
+        <p id="reset-error" class="form-error" role="alert" hidden></p>
+        <button id="reset-submit" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Enregistrer et me connecter</span></button>
+      </form>
+    </main>
+
     <!-- Réglages -->
     <main id="screen-settings" class="screen container page" hidden>
       <div class="page-head">
@@ -360,12 +381,16 @@
             <label for="auth-email">Adresse e-mail</label>
             <input id="auth-email" type="email" autocomplete="email" required />
           </div>
-          <div class="field">
+          <div class="field" id="auth-password-field">
             <label for="auth-password">Mot de passe <span id="auth-password-hint" class="muted" hidden>(8 caractères minimum)</span></label>
             <input id="auth-password" type="password" autocomplete="current-password" required minlength="8" />
           </div>
+          <p id="auth-forgot-note" class="note" hidden>Indique ton adresse : si un compte existe, tu recevras un lien pour choisir un nouveau mot de passe.</p>
           <p id="auth-error" class="form-error" role="alert" hidden></p>
+          <p id="auth-success" class="form-success" role="status" hidden></p>
           <button id="auth-submit" class="btn btn-primary btn-block" type="submit"><span>Se connecter</span></button>
+          <button id="auth-forgot" class="link-btn" type="button">Mot de passe oublié ?</button>
+          <button id="auth-back" class="link-btn" type="button" hidden>Retour à la connexion</button>
         </form>
       </section>
     </div>

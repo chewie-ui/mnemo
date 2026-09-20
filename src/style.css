@@ -1488,6 +1488,53 @@ p {
   margin: 0 0 16px;
 }
 
+.form-success {
+  color: var(--success);
+  font-weight: 600;
+  margin: 0 0 16px;
+}
+
+.form-success a {
+  color: var(--accent);
+}
+
+/* Bouton qui ressemble à un lien (« Mot de passe oublié ? ») */
+.link-btn {
+  display: block;
+  margin: 12px auto 0;
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.link-btn:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.reset-form {
+  max-width: 440px;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.reset-form .note {
+  margin-bottom: 16px;
+}
+
 .modal-head {
   display: flex;
   align-items: center;

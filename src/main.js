@@ -3,7 +3,7 @@ import { initSettings, renderSettings } from './settings.js';
 import { MODES, regionById } from './data/regions.js';
 import { loadUser, onAuthChange, currentUser } from './auth.js';
 import { refreshServerBests } from './scores.js';
-import { initAccount } from './account.js';
+import { initAccount, initReset, renderReset } from './account.js';
 import { renderHome } from './home.js';
 import { startGame, stopSession } from './play.js';
 import { renderStats } from './stats.js';
@@ -41,6 +41,9 @@ function route() {
 
   if (hash === '#/campagne') {
     renderCampaign();
+  } else if ((m = hash.match(/^#\/reset\/([a-f0-9]{64})$/))) {
+    showScreen('reset');
+    renderReset(m[1]);
   } else if (hash === '#/reglages') {
     showScreen('settings');
     renderSettings();
@@ -100,6 +103,7 @@ async function startDuel(id) {
 async function boot() {
   refreshIcons();
   initAccount();
+  initReset();
   initSettings();
   initFriends();
   window.addEventListener('hashchange', route);

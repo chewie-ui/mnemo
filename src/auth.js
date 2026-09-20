@@ -45,6 +45,16 @@ export async function register(email, name, password) {
   return u;
 }
 
+export async function forgotPassword(email) {
+  return post('auth', 'forgot', { email });
+}
+
+export async function resetPassword(token, password) {
+  const { user: u } = await post('auth', 'reset', { token, password });
+  setUser(u);
+  return u;
+}
+
 export async function logout() {
   try {
     await post('auth', 'logout');

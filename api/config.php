@@ -30,4 +30,8 @@ return [
   'password' => $env('DB_PASSWORD'),
   // Origine du site en production (https://…) : les requêtes venues d'ailleurs sont refusées.
   'origin' => $env('APP_ORIGIN'),
+  // Adresse complète du site (liens dans les e-mails) ; par défaut l'origine.
+  'url' => $env('APP_URL', $env('APP_ORIGIN')),
+  // Expéditeur des e-mails (réinitialisation du mot de passe).
+  'mailFrom' => $env('MAIL_FROM'),
 ];

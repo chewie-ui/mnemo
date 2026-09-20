@@ -1,5 +1,5 @@
 // Bouton compte (en haut à droite), menu, et fenêtre de connexion / inscription.
-import { currentUser, onAuthChange, login, register, logout } from './auth.js';
+import { currentUser, onAuthChange, login, register, logout, forgotPassword, resetPassword } from './auth.js';
 import { ApiError } from './api.js';
 import { $, setLoading, toast } from './ui.js';
 
@@ -18,9 +18,14 @@ const ui = {
   name: $('auth-name'),
   email: $('auth-email'),
   password: $('auth-password'),
+  passwordField: $('auth-password-field'),
   passwordHint: $('auth-password-hint'),
+  forgotNote: $('auth-forgot-note'),
   error: $('auth-error'),
+  success: $('auth-success'),
   submit: $('auth-submit'),
+  forgot: $('auth-forgot'),
+  back: $('auth-back'),
 };
 
 let mode = 'login';
@@ -50,14 +55,22 @@ function closeAuth() {
 function setMode(which) {
   mode = which;
   const isRegister = which === 'register';
-  ui.title.textContent = isRegister ? 'Créer un compte' : 'Se connecter';
-  ui.submit.querySelector('span').textContent = isRegister ? 'Créer mon compte' : 'Se connecter';
-  ui.tabLogin.setAttribute('aria-selected', String(!isRegister));
+  const isForgot = which === 'forgot';
+  ui.title.textContent = isRegister ? 'Créer un compte' : isForgot ? 'Mot de passe oublié' : 'Se connecter';
+  ui.submit.querySelector('span').textContent = isRegister ? 'Créer mon compte' : isForgot ? 'Envoyer le lien' : 'Se connecter';
+  ui.tabLogin.setAttribute('aria-selected', String(!isRegister && !isForgot));
   ui.tabRegister.setAttribute('aria-selected', String(isRegister));
   ui.nameField.hidden = !isRegister;
+  ui.passwordField.hidden = isForgot;
+  ui.password.required = !isForgot;
   ui.passwordHint.hidden = !isRegister;
+  ui.forgotNote.hidden = !isForgot;
+  ui.forgot.hidden = which !== 'login';
+  ui.back.hidden = !isForgot;
+  ui.submit.disabled = false;
   ui.password.autocomplete = isRegister ? 'new-password' : 'current-password';
   ui.error.hidden = true;
+  ui.success.hidden = true;
 }
 
 function showError(message) {
@@ -70,6 +83,7 @@ async function submit(e) {
   const email = ui.email.value.trim();
   const password = ui.password.value;
   const name = ui.name.value.trim();
+  if (mode === 'forgot') return sendResetLink(email);
   if (!email || !password) return showError('Renseigne ton adresse e-mail et ton mot de passe.');
   if (mode === 'register' && name.length < 2) return showError('Choisis un pseudo d’au moins 2 caractères.');
   if (mode === 'register' && password.length < 8) return showError('Le mot de passe doit faire au moins 8 caractères.');
@@ -83,6 +97,69 @@ async function submit(e) {
   } finally {
     setLoading(ui.submit, false);
   }
+}
+
+// Demande de lien : même réponse qu'un compte existe ou non (pas d'indice sur les adresses).
+async function sendResetLink(email) {
+  if (!email) return showError('Indique ton adresse e-mail.');
+  setLoading(ui.submit, true);
+  try {
+    const res = await forgotPassword(email);
+    ui.error.hidden = true;
+    ui.success.innerHTML = 'Si un compte existe avec cette adresse, un e-mail vient de partir. Pense à vérifier les indésirables.';
+    if (res.debugLink) {
+      // En local, pas d'envoi : le lien est fourni directement pour tester.
+      const a = document.createElement('a');
+      a.href = res.debugLink;
+      a.textContent = 'Ouvrir le lien (mode local)';
+      ui.success.append(' ', a);
+      a.addEventListener('click', closeAuth);
+    }
+    ui.success.hidden = false;
+    ui.submit.disabled = true;
+  } catch (err) {
+    showError(err instanceof ApiError ? err.message : 'Une erreur est survenue. Réessaie.');
+  } finally {
+    ui.submit.classList.remove('is-loading');
+    if (ui.success.hidden) ui.submit.disabled = false;
+  }
+}
+
+// Écran « nouveau mot de passe » ouvert depuis le lien reçu (#/reset/<jeton>).
+export function renderReset(token) {
+  const form = $('reset-form');
+  const error = $('reset-error');
+  form.reset();
+  error.hidden = true;
+  form.dataset.token = token;
+  $('reset-password').focus();
+}
+
+export function initReset() {
+  const form = $('reset-form');
+  const error = $('reset-error');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const password = $('reset-password').value;
+    const confirm = $('reset-confirm').value;
+    const fail = (msg) => {
+      error.textContent = msg;
+      error.hidden = false;
+    };
+    if (password.length < 8) return fail('Le mot de passe doit faire au moins 8 caractères.');
+    if (password !== confirm) return fail('Les deux mots de passe ne sont pas identiques.');
+    error.hidden = true;
+    setLoading($('reset-submit'), true);
+    try {
+      const user = await resetPassword(form.dataset.token, password);
+      toast(`Mot de passe changé. Content de te revoir, ${user.name} !`);
+      location.hash = '#/';
+    } catch (err) {
+      fail(err instanceof ApiError ? err.message : 'Une erreur est survenue. Réessaie.');
+    } finally {
+      setLoading($('reset-submit'), false);
+    }
+  });
 }
 
 export function initAccount() {
@@ -113,6 +190,14 @@ export function initAccount() {
     }
   });
 
+  ui.forgot.addEventListener('click', () => {
+    setMode('forgot');
+    ui.email.focus();
+  });
+  ui.back.addEventListener('click', () => {
+    setMode('login');
+    ui.email.focus();
+  });
   ui.tabLogin.addEventListener('click', () => setMode('login'));
   ui.tabRegister.addEventListener('click', () => setMode('register'));
   ui.close.addEventListener('click', closeAuth);
