@@ -8,7 +8,8 @@ $uid = requireUser();
 
 const DUEL_WIN_TROPHIES = 5;
 
-const DUEL_SELECT = 'SELECT d.*, c.name AS challenger_name, c.trophies AS challenger_trophies, o.name AS opponent_name, o.trophies AS opponent_trophies
+const DUEL_SELECT = 'SELECT d.*, c.name AS challenger_name, c.trophies AS challenger_trophies, c.avatar AS challenger_avatar,
+    o.name AS opponent_name, o.trophies AS opponent_trophies, o.avatar AS opponent_avatar
     FROM duels d JOIN users c ON c.id = d.challenger_id JOIN users o ON o.id = d.opponent_id';
 
 function duelRow(int $uid, int $id): array {
@@ -45,11 +46,13 @@ function publicDuel(int $uid, array $d): array {
       'id' => $otherId,
       'name' => $isChallenger ? $d['opponent_name'] : $d['challenger_name'],
       'trophies' => (int) ($isChallenger ? $d['opponent_trophies'] : $d['challenger_trophies']),
+      'avatar' => $isChallenger ? $d['opponent_avatar'] : $d['challenger_avatar'],
     ],
     'self' => [
       'id' => $uid,
       'name' => $isChallenger ? $d['challenger_name'] : $d['opponent_name'],
       'trophies' => (int) ($isChallenger ? $d['challenger_trophies'] : $d['opponent_trophies']),
+      'avatar' => $isChallenger ? $d['challenger_avatar'] : $d['opponent_avatar'],
     ],
     'me' => $res[$uid] ?? $empty, 'them' => $res[$otherId] ?? $empty,
     'winnerId' => $d['winner_id'] === null ? null : (int) $d['winner_id'],

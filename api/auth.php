@@ -4,7 +4,7 @@ declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 
 function publicUser(array $row): array {
-  return ['id' => (int) $row['id'], 'email' => $row['email'], 'name' => $row['name'], 'trophies' => (int) ($row['trophies'] ?? 0)];
+  return ['id' => (int) $row['id'], 'email' => $row['email'], 'name' => $row['name'], 'trophies' => (int) ($row['trophies'] ?? 0), 'avatar' => $row['avatar'] ?? null];
 }
 
 const RESET_TTL = 3600; // un lien vaut une heure
@@ -83,7 +83,7 @@ switch (action()) {
   case 'me': {
     $uid = currentUserId();
     if ($uid === null) ok(['user' => null]);
-    $stmt = db()->prepare('SELECT id, email, name, trophies FROM users WHERE id = ?');
+    $stmt = db()->prepare('SELECT id, email, name, trophies, avatar FROM users WHERE id = ?');
     $stmt->execute([$uid]);
     $row = $stmt->fetch();
     if (!$row) {
@@ -113,14 +113,14 @@ switch (action()) {
     $id = (int) db()->lastInsertId();
     session_regenerate_id(true);
     $_SESSION['uid'] = $id;
-    ok(['user' => ['id' => $id, 'email' => $email, 'name' => $name, 'trophies' => 0]], 201);
+    ok(['user' => ['id' => $id, 'email' => $email, 'name' => $name, 'trophies' => 0, 'avatar' => null]], 201);
   }
 
   case 'login': {
     $in = input();
     $email = mb_strtolower(text($in['email'] ?? '', 190));
     $password = (string) ($in['password'] ?? '');
-    $stmt = db()->prepare('SELECT id, email, name, trophies, password_hash FROM users WHERE email = ?');
+    $stmt = db()->prepare('SELECT id, email, name, trophies, avatar, password_hash FROM users WHERE email = ?');
     $stmt->execute([$email]);
     $row = $stmt->fetch();
     // Même message dans les deux cas : on ne révèle pas si l'adresse existe.
@@ -184,12 +184,30 @@ switch (action()) {
     $db->prepare('UPDATE password_resets SET used_at = ? WHERE id = ?')->execute([gmdate('Y-m-d H:i:s'), (int) $reset['id']]);
     $db->prepare('DELETE FROM password_resets WHERE user_id = ? AND id <> ?')->execute([(int) $reset['user_id'], (int) $reset['id']]);
     $db->commit();
-    $stmt = $db->prepare('SELECT id, email, name, trophies FROM users WHERE id = ?');
+    $stmt = $db->prepare('SELECT id, email, name, trophies, avatar FROM users WHERE id = ?');
     $stmt->execute([(int) $reset['user_id']]);
     $row = $stmt->fetch();
     session_regenerate_id(true);
     $_SESSION['uid'] = (int) $row['id'];
     ok(['user' => publicUser($row)]);
+  }
+
+  // Avatar : « icone:couleur » parmi les valeurs connues, ou vide pour revenir à l'initiale.
+  case 'avatar': {
+    $uid = requireUser();
+    $avatar = text(input()['avatar'] ?? '', 40);
+    $icons = ['cat', 'dog', 'bird', 'fish', 'rabbit', 'squirrel', 'turtle', 'snail', 'bug', 'ghost', 'bot', 'skull',
+      'rocket', 'crown', 'star', 'heart', 'zap', 'flame', 'leaf', 'sun', 'moon', 'globe', 'mountain', 'anchor',
+      'compass', 'sword', 'shield', 'gamepad-2', 'palette', 'music', 'pizza', 'dices'];
+    $colors = ['blue', 'teal', 'green', 'orange', 'red', 'purple', 'pink', 'slate'];
+    if ($avatar !== '') {
+      [$icon, $color] = array_pad(explode(':', $avatar, 2), 2, '');
+      if (!in_array($icon, $icons, true) || !in_array($color, $colors, true)) fail(422, 'Avatar inconnu.');
+    }
+    db()->prepare('UPDATE users SET avatar = ? WHERE id = ?')->execute([$avatar === '' ? null : $avatar, $uid]);
+    $stmt = db()->prepare('SELECT id, email, name, trophies, avatar FROM users WHERE id = ?');
+    $stmt->execute([$uid]);
+    ok(['user' => publicUser($stmt->fetch())]);
   }
 
   // Changement de pseudo : mêmes règles qu'à l'inscription (2 caractères minimum, unique).
@@ -201,7 +219,7 @@ switch (action()) {
     $stmt->execute([$name, $uid]);
     if ($stmt->fetch()) fail(409, 'Ce pseudo est déjà pris.');
     db()->prepare('UPDATE users SET name = ? WHERE id = ?')->execute([$name, $uid]);
-    $stmt = db()->prepare('SELECT id, email, name, trophies FROM users WHERE id = ?');
+    $stmt = db()->prepare('SELECT id, email, name, trophies, avatar FROM users WHERE id = ?');
     $stmt->execute([$uid]);
     ok(['user' => publicUser($stmt->fetch())]);
   }

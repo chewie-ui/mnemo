@@ -2,6 +2,7 @@
 import { currentUser, onAuthChange, login, register, logout, forgotPassword, resetPassword, confirmEmail } from './auth.js';
 import { ApiError } from './api.js';
 import { $, setLoading, toast, escapeHtml, refreshIcons } from './ui.js';
+import { avatarHtml } from './avatar.js';
 
 const ui = {
   btn: $('user-btn'),
@@ -32,6 +33,8 @@ let mode = 'login';
 
 function renderUser(user) {
   ui.label.textContent = user ? user.name : 'Se connecter';
+  $('user-avatar').innerHTML = user ? avatarHtml(user, 'sm') : '<i data-lucide="circle-user-round" aria-hidden="true"></i>';
+  refreshIcons();
   ui.btn.setAttribute('aria-label', user ? `Compte de ${user.name}` : 'Se connecter ou créer un compte');
 }
 

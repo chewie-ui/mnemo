@@ -36,7 +36,7 @@
       <div class="user-area">
         <a class="btn btn-ghost btn-icon settings-btn" href="#/reglages" aria-label="Réglages" title="Réglages"><i data-lucide="settings" aria-hidden="true"></i></a>
         <button id="user-btn" class="btn btn-ghost user-btn" type="button" aria-haspopup="menu" aria-expanded="false">
-          <i data-lucide="circle-user-round" aria-hidden="true"></i>
+          <span id="user-avatar"><i data-lucide="circle-user-round" aria-hidden="true"></i></span>
           <span id="user-label">Se connecter</span>
         </button>
         <div id="user-menu" class="menu" role="menu" hidden>
@@ -285,9 +285,31 @@
         <section class="settings-section">
           <h2>Compte</h2>
           <div id="settings-account-in" class="settings-row" hidden>
-            <span class="settings-text"><strong id="settings-name"></strong><span id="settings-email" class="muted"></span></span>
+            <span class="settings-identity"><span id="settings-avatar"></span><span class="settings-text"><strong id="settings-name"></strong><span id="settings-email" class="muted"></span></span></span>
             <button id="settings-logout" class="btn btn-ghost" type="button"><i data-lucide="log-out" aria-hidden="true"></i><span>Se déconnecter</span></button>
           </div>
+          <form id="avatar-form" class="password-form" novalidate hidden>
+            <h3>Avatar</h3>
+            <p class="note">Visible par tes amis et dans les défis.</p>
+            <div class="avatar-editor">
+              <div id="avatar-preview" class="avatar-preview"></div>
+              <div class="avatar-choices">
+                <fieldset class="avatar-icons">
+                  <legend class="sr-only">Icône</legend>
+                  <div id="avatar-icon-list" class="avatar-icon-list"></div>
+                </fieldset>
+                <fieldset class="avatar-colors">
+                  <legend class="sr-only">Couleur</legend>
+                  <div id="avatar-color-list" class="avatar-color-list"></div>
+                </fieldset>
+              </div>
+            </div>
+            <p id="avatar-error" class="form-error" role="alert" hidden></p>
+            <div class="hero-actions">
+              <button id="avatar-submit" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Enregistrer l’avatar</span></button>
+              <button id="avatar-reset" class="btn btn-ghost" type="button"><span>Revenir à l’initiale</span></button>
+            </div>
+          </form>
           <form id="name-form" class="password-form" novalidate hidden>
             <h3>Changer de pseudo</h3>
             <div class="name-row">

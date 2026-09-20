@@ -1,5 +1,6 @@
 // Déroulé d'un défi : invitation reçue, attente de l'adversaire, écran VS avec compte à rebours,
 // puis la carte. Et la notification quand un ami nous défie.
+import { avatarHtml } from './avatar.js';
 import { get, post, ApiError } from './api.js';
 import { currentUser } from './auth.js';
 import { regionById, modeLabel } from './data/regions.js';
@@ -22,7 +23,7 @@ export function stopDuelWatch() {
 
 const playerCard = (p, side) => `
   <div class="vs-player vs-${side}">
-    <span class="vs-avatar" aria-hidden="true"><i data-lucide="circle-user-round"></i></span>
+    ${avatarHtml(p, 'lg')}
     <strong class="vs-name">${escapeHtml(p.name)}</strong>
     <span class="trophy"><i data-lucide="trophy" aria-hidden="true"></i>${p.trophies}</span>
   </div>`;
@@ -215,7 +216,7 @@ function showInviteBanner(duel) {
   const banner = $('invite-banner');
   banner.dataset.duel = String(duel.id);
   banner.innerHTML = `
-    <i data-lucide="swords" aria-hidden="true"></i>
+    ${avatarHtml(duel.opponent, 'md')}
     <div class="invite-text"><strong>${escapeHtml(duel.opponent.name)} te défie</strong><span>${escapeHtml(mapName(duel))}</span></div>
     <a class="btn btn-primary" href="#/duel/${duel.id}">Voir</a>
     <button class="btn btn-icon btn-icon-plain" type="button" aria-label="Fermer" data-close><i data-lucide="x" aria-hidden="true"></i></button>`;

@@ -1,7 +1,8 @@
 // Réglages : thème (système / clair / sombre), mode « confirmer », compte, données locales.
 // Tout est propre à l'appareil et gardé dans localStorage.
-import { currentUser, onAuthChange, logout, changePassword, deleteAccount, renameUser, requestEmailChange, cancelEmailChange, pendingEmailAddress } from './auth.js';
+import { currentUser, onAuthChange, logout, changePassword, deleteAccount, renameUser, requestEmailChange, cancelEmailChange, pendingEmailAddress, setAvatar } from './auth.js';
 import { escapeHtml } from './ui.js';
+import { AVATAR_ICONS, AVATAR_COLORS, AVATAR_COLOR_LABELS, avatarHtml, parseAvatar } from './avatar.js';
 import { ApiError } from './api.js';
 import { openAuth } from './account.js';
 import { $, refreshIcons, toast, setLoading } from './ui.js';
@@ -57,18 +58,47 @@ function renderAccount() {
   const user = currentUser();
   $('settings-account-in').hidden = !user;
   $('settings-account-out').hidden = Boolean(user);
+  $('avatar-form').hidden = !user;
   $('name-form').hidden = !user;
   $('email-form').hidden = !user;
   $('password-form').hidden = !user;
   $('settings-danger').hidden = !user;
   if (user) {
+    $('settings-avatar').innerHTML = avatarHtml(user, 'lg');
     $('settings-name').textContent = user.name;
+    renderAvatarEditor(user);
     $('settings-email').textContent = user.email ?? '';
     $('name-input').value = user.name;
     $('email-input').value = pendingEmailAddress() ?? user.email ?? '';
     $('email-password').value = '';
     renderPendingEmail();
   }
+}
+
+// ─── Éditeur d'avatar : une icône + une couleur, aperçu en direct ───
+let avatarDraft = { icon: null, color: null };
+
+function renderAvatarEditor(user) {
+  const current = parseAvatar(user.avatar);
+  avatarDraft = { icon: current?.icon ?? AVATAR_ICONS[0], color: current?.color ?? 'blue' };
+  $('avatar-icon-list').innerHTML = AVATAR_ICONS.map((icon) => `
+    <label class="avatar-pick">
+      <input type="radio" name="avatar-icon" value="${icon}" ${icon === avatarDraft.icon ? 'checked' : ''} />
+      <span class="avatar-pick-box" aria-label="${icon}"><i data-lucide="${icon}" aria-hidden="true"></i></span>
+    </label>`).join('');
+  $('avatar-color-list').innerHTML = Object.entries(AVATAR_COLORS).map(([key, hex]) => `
+    <label class="avatar-pick">
+      <input type="radio" name="avatar-color" value="${key}" ${key === avatarDraft.color ? 'checked' : ''} />
+      <span class="avatar-pick-dot" style="--avatar-bg:${hex}" aria-label="${AVATAR_COLOR_LABELS[key]}"></span>
+    </label>`).join('');
+  $('avatar-reset').hidden = !current;
+  updateAvatarPreview();
+}
+
+function updateAvatarPreview() {
+  const user = currentUser();
+  $('avatar-preview').innerHTML = avatarHtml({ name: user?.name, avatar: `${avatarDraft.icon}:${avatarDraft.color}` }, 'lg');
+  refreshIcons();
 }
 
 // Demande en cours : on le dit, avec de quoi l'annuler.
@@ -130,6 +160,34 @@ export function initSettings() {
       setLoading(e.currentTarget, false);
     }
   });
+  $('avatar-form').addEventListener('change', (e) => {
+    if (e.target.name === 'avatar-icon') avatarDraft.icon = e.target.value;
+    if (e.target.name === 'avatar-color') avatarDraft.color = e.target.value;
+    updateAvatarPreview();
+  });
+  const saveAvatar = async (value) => {
+    const error = $('avatar-error');
+    error.hidden = true;
+    setLoading($('avatar-submit'), true);
+    try {
+      const user = await setAvatar(value);
+      $('settings-avatar').innerHTML = avatarHtml(user, 'lg');
+      $('avatar-reset').hidden = !user.avatar;
+      refreshIcons();
+      toast(value ? 'Avatar enregistré.' : 'Avatar remis à l’initiale.');
+    } catch (err) {
+      error.textContent = err instanceof ApiError ? err.message : 'Une erreur est survenue. Réessaie.';
+      error.hidden = false;
+    } finally {
+      setLoading($('avatar-submit'), false);
+    }
+  };
+  $('avatar-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    saveAvatar(`${avatarDraft.icon}:${avatarDraft.color}`);
+  });
+  $('avatar-reset').addEventListener('click', () => saveAvatar(''));
+
   $('name-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const error = $('name-error');

@@ -84,6 +84,12 @@ export async function confirmEmail(token) {
   return res;
 }
 
+export async function setAvatar(avatar) {
+  const { user: u } = await post('auth', 'avatar', { avatar });
+  setUser(u);
+  return u;
+}
+
 export function changePassword(current, password) {
   return post('auth', 'password', { current, password });
 }

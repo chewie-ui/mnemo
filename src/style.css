@@ -2229,10 +2229,161 @@ p {
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
-.vs-avatar .lucide {
-  width: 48px;
-  height: 48px;
+/* ─── Avatars ─── */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--avatar-bg, var(--accent));
+  color: #ffffff;
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+}
+
+.avatar-sm {
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+}
+
+.avatar-sm .lucide {
+  width: 14px;
+  height: 14px;
+}
+
+.avatar-md {
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+}
+
+.avatar-md .lucide {
+  width: 22px;
+  height: 22px;
+}
+
+.avatar-lg {
+  width: 72px;
+  height: 72px;
+  font-size: 32px;
+}
+
+.avatar-lg .lucide {
+  width: 40px;
+  height: 40px;
+}
+
+.name-with-avatar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-btn #user-avatar {
+  display: inline-flex;
+}
+
+.settings-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1 1 280px;
+}
+
+.avatar-editor {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.avatar-preview {
+  flex-shrink: 0;
+}
+
+.avatar-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 280px;
+}
+
+.avatar-icons,
+.avatar-colors {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.avatar-icon-list,
+.avatar-color-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.avatar-pick {
+  position: relative;
+  cursor: pointer;
+}
+
+.avatar-pick input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.avatar-pick-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--text);
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.avatar-pick-box .lucide {
+  width: 22px;
+  height: 22px;
+}
+
+.avatar-pick-dot {
+  display: inline-block;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--avatar-bg);
+  border: 3px solid transparent;
+  box-shadow: 0 0 0 2px var(--border);
+  transition: box-shadow 150ms ease;
+}
+
+.avatar-pick:hover .avatar-pick-box {
+  border-color: var(--border-strong);
+}
+
+.avatar-pick input:checked + .avatar-pick-box {
+  border-color: var(--accent);
+  background: var(--accent-soft);
   color: var(--accent);
+}
+
+.avatar-pick input:checked + .avatar-pick-dot {
+  box-shadow: 0 0 0 3px var(--accent);
+}
+
+.avatar-pick input:focus-visible + .avatar-pick-box,
+.avatar-pick input:focus-visible + .avatar-pick-dot {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .vs-name {

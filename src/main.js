@@ -116,7 +116,13 @@ async function boot() {
   await loadUser();
   await refreshServerBests();
   if (currentUser()) startInboxWatch();
+  // Connexion ou déconnexion : on recharge la page courante. Une simple mise à jour du
+  // profil (pseudo, avatar, adresse) ne fait pas repartir le routeur.
+  let lastUserId = currentUser()?.id ?? null;
   onAuthChange(async (user) => {
+    const id = user?.id ?? null;
+    if (id === lastUserId) return;
+    lastUserId = id;
     await refreshServerBests();
     if (user) startInboxWatch();
     else stopInboxWatch();

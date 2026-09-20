@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(190) NOT NULL UNIQUE,
   name VARCHAR(60) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
+  avatar VARCHAR(40) NULL, -- « icone:couleur », NULL = initiale du pseudo
   trophies INT UNSIGNED NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

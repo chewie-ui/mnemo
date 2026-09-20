@@ -48,6 +48,12 @@ function db(): PDO {
     $pdo->exec('PRAGMA foreign_keys = ON');
     $pdo->exec(file_get_contents(__DIR__ . '/schema.sqlite.sql'));
   }
+  // Colonnes ajoutées après coup : créées sur les bases existantes, SQLite comme MySQL.
+  try {
+    $pdo->query('SELECT avatar FROM users LIMIT 1');
+  } catch (PDOException) {
+    $pdo->exec('ALTER TABLE users ADD COLUMN avatar VARCHAR(40) NULL');
+  }
   return $pdo;
 }
 
