@@ -790,6 +790,15 @@ p {
   fill: #dfe6ea;
 }
 
+/* Dézoomé : simple point, trait invisible. */
+.micro.is-dot .leader {
+  display: none;
+}
+
+.micro.is-dot circle {
+  stroke-width: 1.5;
+}
+
 .micro[data-state='correct-1'] circle {
   fill: var(--state-correct-1);
 }

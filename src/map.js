@@ -14,6 +14,10 @@ const MICRO_AREA = 60; // surface projetée (px²) en dessous de laquelle on ajo
 const TOUCH = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
 const MARKER_R = TOUCH ? 10 : 8; // rayon du repère déporté à l'écran, constant quel que soit le zoom
 const MARKER_HIDE_PX = 28; // dès que l'île fait cette taille à l'écran, on clique l'île elle-même
+// Dézoomé, un simple point sur l'île (les traits de 100 repères feraient un fouillis) ;
+// à partir de ce zoom, le repère déporté avec son trait, qui a alors la place de se ranger.
+const CALLOUT_ZOOM = 2.5;
+const DOT_R = TOUCH ? 5 : 3.5;
 // Emplacements candidats du cercle autour de l'île (distance et angle, en pixels écran).
 const CALLOUT_SLOTS = [22, 40, 60].flatMap((d) => [-60, -120, 0, 180, -30, -150, 60, 120, 90, -90].map((a) => [d * Math.cos((a * Math.PI) / 180), d * Math.sin((a * Math.PI) / 180)]));
 const POINT_R = TOUCH ? 7.5 : 5.5; // rayon d'une ville à l'écran, constant quel que soit le zoom
@@ -285,11 +289,21 @@ export class GameMap {
       islands.some(([ix, iy], i) => i !== ownIndex && Math.hypot(ix - x, iy - y) < r + 4 / k);
     // Les repères sont posés de haut en bas pour un rendu stable d'un zoom à l'autre.
     const order = this.markers.map((m, i) => i).sort((a, b) => this.markers[a].cy - this.markers[b].cy || this.markers[a].cx - this.markers[b].cx);
+    const dots = k < CALLOUT_ZOOM;
     for (const i of order) {
       const m = this.markers[i];
       const hidden = m.size * k >= MARKER_HIDE_PX;
       m.group.style.display = hidden ? 'none' : '';
+      m.group.classList.toggle('is-dot', dots);
       if (hidden) continue;
+      if (dots) {
+        m.circle.setAttribute('cx', m.cx);
+        m.circle.setAttribute('cy', m.cy);
+        m.circle.setAttribute('r', DOT_R / k);
+        m.leader.setAttribute('x2', m.cx);
+        m.leader.setAttribute('y2', m.cy);
+        continue;
+      }
       let best = null;
       for (const [dx, dy] of CALLOUT_SLOTS) {
         const x = m.cx + dx / k;
