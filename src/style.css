@@ -638,6 +638,60 @@ p {
   align-self: center;
 }
 
+/* Rappel de la question en bas du plateau (carte ou grille), traversé par les clics. */
+.map-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 140px);
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgb(var(--ink) / 0.2);
+  pointer-events: none;
+}
+
+.map-prompt-label {
+  color: var(--text-muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.map-prompt strong {
+  font-size: 20px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-prompt strong:empty {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .map-prompt {
+    bottom: 12px;
+    max-width: calc(100% - 24px);
+    padding: 8px 14px;
+  }
+
+  .map-prompt strong {
+    font-size: 18px;
+  }
+
+  /* Les boutons de zoom laissent la place au rappel. */
+  .map-wrap .zoom-controls {
+    bottom: 72px;
+  }
+}
+
 /* Infobulle au curseur : le nom de ce qu'on vient de cliquer par erreur. */
 .map-tip {
   position: absolute;

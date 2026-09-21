@@ -15,6 +15,10 @@ import { $, flagUrl, escapeHtml, refreshIcons, toast } from './ui.js';
 const ui = {
   promptLabel: document.querySelector('.prompt-label'),
   promptFlag: $('prompt-flag'),
+  mapPrompt: $('map-prompt'),
+  mapPromptLabel: document.querySelector('.map-prompt-label'),
+  mapPromptFlag: $('map-prompt-flag'),
+  mapPromptName: $('map-prompt-name'),
   grid: $('flag-grid'),
   zoomControls: $('zoom-controls'),
   promptName: $('prompt-name'),
@@ -225,6 +229,12 @@ function updateHud() {
   if (current?.flag) ui.promptFlag.src = flagUrl(current.flag);
   ui.promptLabel.textContent = current?.prompt?.label ?? 'Trouve';
   ui.promptName.textContent = current ? (current.flag ? '' : (current.prompt?.text ?? current.name)) : '—';
+  // Rappel de la question en bas du plateau : plus besoin de lever les yeux.
+  ui.mapPrompt.hidden = !current;
+  ui.mapPromptLabel.textContent = ui.promptLabel.textContent;
+  ui.mapPromptFlag.hidden = !current?.flag;
+  if (current?.flag) ui.mapPromptFlag.src = flagUrl(current.flag);
+  ui.mapPromptName.textContent = ui.promptName.textContent;
   ui.progress.textContent = `${game.index} / ${game.total}`;
   ui.errors.textContent = String(game.stats.errors);
   ui.time.textContent = formatTime(game.elapsedMs);
@@ -324,6 +334,7 @@ async function finishGame() {
   clearResume();
   ui.tip.hidden = true;
   ui.promptFlag.hidden = true;
+  ui.mapPrompt.hidden = true;
   const stats = game.stats;
 
   $('results-region').textContent = `${region.name} · ${modeLabel(region, mode)} · ${stats.total} ${unitLabel(region, mode, stats.total)}`;
