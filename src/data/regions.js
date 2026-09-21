@@ -47,11 +47,13 @@ export const SUBDIVISION_REGIONS = ADMIN1_INDEX.map((m) => ({
 
 // Six façons de jouer chaque carte.
 // 'countries' : cliquer sur une zone. 'flags' : idem, mais on montre un drapeau.
+// 'flagpick' : pas de carte, tous les drapeaux en grille, on clique celui du pays demandé.
 // 'capitals' / 'cities' : un point. 'rivers' : un tracé. 'seas' : une étendue d'eau.
-export const MODES = ['countries', 'flags', 'capitals', 'cities', 'monuments', 'languages', 'currencies', 'rivers', 'seas'];
+export const MODES = ['countries', 'flags', 'flagpick', 'capitals', 'cities', 'monuments', 'languages', 'currencies', 'rivers', 'seas'];
 
 export function modeLabel(region, mode) {
   if (mode === 'flags') return 'Drapeaux';
+  if (mode === 'flagpick') return 'Quel drapeau ?';
   if (mode === 'languages') return 'Langues';
   if (mode === 'currencies') return 'Monnaies';
   if (mode === 'monuments') return 'Monuments';
@@ -66,7 +68,7 @@ export function modeLabel(region, mode) {
 // Unité pour « 46 pays », « 50 États », « 38 villes »…
 export function unitLabel(region, mode, count) {
   const plural = count > 1;
-  if (mode === 'flags') return plural ? 'drapeaux' : 'drapeau';
+  if (mode === 'flags' || mode === 'flagpick') return plural ? 'drapeaux' : 'drapeau';
   if (mode === 'languages') return plural ? 'langues' : 'langue';
   if (mode === 'currencies') return plural ? 'monnaies' : 'monnaie';
   if (mode === 'monuments') return plural ? 'monuments' : 'monument';
@@ -117,6 +119,13 @@ export function targetsFor(region, mode = 'countries') {
     return Object.entries(COUNTRIES)
       .filter(([id]) => inRegion(region, id))
       .map(([id, c]) => ({ id, name: c.fr, flag: ISO2[id] }));
+  }
+  // Grille de drapeaux : la question est le nom du pays, la tuile porte le drapeau.
+  if (mode === 'flagpick') {
+    if (region.kind !== 'countries') return [];
+    return Object.entries(COUNTRIES)
+      .filter(([id]) => inRegion(region, id) && ISO2[id])
+      .map(([id, c]) => ({ id, name: c.fr, tile: ISO2[id] }));
   }
   if (mode === 'rivers') {
     return RIVERS.filter((r) => r.regions.includes(region.id)).map((r) => ({ id: `river:${slug(r.name)}`, name: r.name }));

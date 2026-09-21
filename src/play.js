@@ -3,6 +3,7 @@ import { confirmMode as readConfirmMode, setConfirmMode } from './settings.js';
 import { targetsFor, modeLabel, unitLabel } from './data/regions.js';
 import { Game, formatTime } from './game.js';
 import { GameMap } from './map.js';
+import { FlagGrid } from './flag-grid.js';
 import { recordGame } from './scores.js';
 import { currentUser } from './auth.js';
 import { LANGUAGES } from './data/languages.js';
@@ -14,6 +15,8 @@ import { $, flagUrl, escapeHtml, refreshIcons } from './ui.js';
 const ui = {
   promptLabel: document.querySelector('.prompt-label'),
   promptFlag: $('prompt-flag'),
+  grid: $('flag-grid'),
+  zoomControls: $('zoom-controls'),
   promptName: $('prompt-name'),
   feedback: $('feedback'),
   progress: $('hud-progress'),
@@ -88,16 +91,22 @@ export async function startGame(region, mode, duel = null, level = null) {
   ui.loading.hidden = false;
   ui.loading.innerHTML = '<span class="spinner" aria-hidden="true"></span><span>Chargement de la carte…</span>';
   ui.svg.innerHTML = '';
+  ui.grid.innerHTML = '';
 
   const targets = level ? levelTargets(level) : targetsFor(region, mode);
   const game = new Game(targets, duel?.seed ?? null);
-  const map = new GameMap(ui.svg, region, targets, mode, { restrict: Boolean(level) });
+  // « Trouve le drapeau » se joue sur une grille de drapeaux, pas sur la carte.
+  const isGrid = mode === 'flagpick';
+  ui.svg.hidden = isGrid;
+  ui.grid.hidden = !isGrid;
+  ui.zoomControls.hidden = isGrid;
+  const map = isGrid ? new FlagGrid(ui.grid, targets, duel?.seed ?? null) : new GameMap(ui.svg, region, targets, mode, { restrict: Boolean(level) });
   session = { region, mode, game, map, timer: null, duel, level, poll: null, lastProgressSent: 0 };
   if (level) {
     ui.levelTag.hidden = false;
     ui.levelTag.textContent = `Niveau ${level.number} · ${level.title}`;
   }
-  ui.svg.setAttribute('aria-label', `Carte muette — ${region.name}, ${modeLabel(region, mode)}`);
+  (isGrid ? ui.grid : ui.svg).setAttribute('aria-label', `${isGrid ? 'Drapeaux' : 'Carte muette'} — ${region.name}, ${modeLabel(region, mode)}`);
 
   try {
     await map.render();
@@ -245,13 +254,13 @@ function handleAnswer(id, at) {
     map.flash(id);
     showTip(nameOf(id), at);
     for (const z of zonesOf(res.target)) map.setState(z, 'reveal');
-    setFeedback(zonesOf(res.target).length > 1 ? 'Raté. Clique sur un des pays qui clignotent' : 'Raté. Clique sur la zone qui clignote pour continuer', 'ko');
+    setFeedback(zonesOf(res.target).length > 1 ? 'Raté. Clique sur un des pays qui clignotent' : `Raté. Clique sur ${session.mode === 'flagpick' ? 'le drapeau' : 'la zone'} qui clignote pour continuer`, 'ko');
   } else if (res.type === 'confirmed') {
     for (const z of zonesOf(res.target)) map.setState(z, z === id ? 'failed' : null);
     setFeedback(`C'était ${res.target.name}`, 'ko');
   } else if (res.type === 'ignored') {
     showTip(nameOf(id), at);
-    setFeedback('Clique sur la zone qui clignote', 'ko');
+    setFeedback(`Clique sur ${session.mode === 'flagpick' ? 'le drapeau' : 'la zone'} qui clignote`, 'ko');
   }
 
   updateHud();

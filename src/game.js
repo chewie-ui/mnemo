@@ -17,7 +17,7 @@ function seeded(seed) {
   };
 }
 
-function shuffle(list, seed) {
+export function shuffle(list, seed) {
   const random = seed ? seeded(seed) : Math.random;
   const a = list.slice();
   for (let i = a.length - 1; i > 0; i--) {

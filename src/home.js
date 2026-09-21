@@ -4,10 +4,10 @@ import { getBest } from './scores.js';
 import { store } from './memos.js';
 import { $, refreshIcons, flagUrl, escapeHtml } from './ui.js';
 
-const MODE_ICON = { countries: 'map', flags: 'flag', capitals: 'map-pin', cities: 'building-2', languages: 'languages', currencies: 'coins', monuments: 'castle', rivers: 'waves', seas: 'sailboat' };
+const MODE_ICON = { countries: 'map', flags: 'flag', flagpick: 'layout-grid', capitals: 'map-pin', cities: 'building-2', languages: 'languages', currencies: 'coins', monuments: 'castle', rivers: 'waves', seas: 'sailboat' };
 
 // Modes toujours visibles ; les autres se replient derrière un bouton « Plus ».
-const PRIMARY_MODES = new Set(['countries', 'flags', 'capitals']);
+const PRIMARY_MODES = new Set(['countries', 'flags', 'flagpick', 'capitals']);
 const expanded = new Set(); // cartes dépliées, conservées d'un rendu à l'autre
 
 const fold = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();

@@ -725,6 +725,106 @@ p {
   }
 }
 
+/* ─── Grille de drapeaux (mode « Trouve le drapeau ») ─── */
+.flag-grid {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 124px);
+  justify-content: center;
+  gap: 12px;
+  align-content: start;
+  background: var(--background);
+}
+
+.flag-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  min-height: 44px;
+  border: 3px solid transparent;
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease, transform 100ms ease;
+}
+
+.flag-tile img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgb(var(--ink) / 0.15);
+  pointer-events: none;
+}
+
+.flag-tile:hover:not([data-state]) {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+
+.flag-tile:active:not([data-state]) {
+  transform: none;
+}
+
+.flag-tile:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.flag-tile[data-state='correct-1'] {
+  border-color: var(--state-correct-1);
+  background: color-mix(in srgb, var(--state-correct-1) 22%, var(--surface));
+}
+
+.flag-tile[data-state='correct-2'] {
+  border-color: var(--state-correct-2);
+  background: color-mix(in srgb, var(--state-correct-2) 22%, var(--surface));
+}
+
+.flag-tile[data-state='correct-3'] {
+  border-color: var(--state-correct-3);
+  background: color-mix(in srgb, var(--state-correct-3) 30%, var(--surface));
+}
+
+.flag-tile[data-state='failed'],
+.flag-tile.flash {
+  border-color: var(--state-failed);
+  background: color-mix(in srgb, var(--state-failed) 22%, var(--surface));
+}
+
+.flag-tile[data-state='reveal'] {
+  border-color: var(--state-failed);
+  animation: tile-blink 600ms ease-in-out infinite alternate;
+}
+
+@keyframes tile-blink {
+  from {
+    background: var(--surface);
+  }
+  to {
+    background: color-mix(in srgb, var(--state-failed) 45%, var(--surface));
+  }
+}
+
+.flag-tile.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+@media (max-width: 640px) {
+  .flag-grid {
+    grid-template-columns: repeat(auto-fill, 100px);
+    gap: 8px;
+    padding: 12px;
+  }
+}
+
 .zoom-controls {
   position: absolute;
   right: 16px;

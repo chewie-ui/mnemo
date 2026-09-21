@@ -122,12 +122,13 @@
           <span>Chargement de la carte…</span>
         </div>
         <svg id="map" class="map" role="img" aria-label="Carte muette"></svg>
+        <div id="flag-grid" class="flag-grid" role="group" aria-label="Drapeaux" hidden></div>
         <div id="map-tip" class="map-tip" role="status" hidden></div>
         <div id="confirm-bar" class="confirm-bar" hidden>
           <button id="confirm-ok" class="btn btn-primary" type="button"><i data-lucide="check" aria-hidden="true"></i><span>Valider</span></button>
           <button id="confirm-cancel" class="btn btn-ghost" type="button">Annuler</button>
         </div>
-        <div class="zoom-controls">
+        <div id="zoom-controls" class="zoom-controls">
           <button id="zoom-in" class="btn btn-icon" type="button" aria-label="Zoomer"><i data-lucide="plus" aria-hidden="true"></i></button>
           <button id="zoom-out" class="btn btn-icon" type="button" aria-label="Dézoomer"><i data-lucide="minus" aria-hidden="true"></i></button>
           <button id="zoom-reset" class="btn btn-icon" type="button" aria-label="Réinitialiser le zoom"><i data-lucide="maximize" aria-hidden="true"></i></button>
