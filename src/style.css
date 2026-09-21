@@ -43,9 +43,13 @@
   --river-hover: #0b3f78;
   --zone-stroke: #d97b2b;
   --leader: #3d4a55;
+  --leader-halo: none;
+  --marker-fill: #ffffff;
+  --marker-stroke: #14181d;
   --city-fill: #ffffff;
-  --city-stroke: #3d4a55;
+  --city-stroke: #14181d;
   --city-selected: #bcd3f2;
+  --inset-stroke: rgb(20 24 29 / 0.35);
   --state-correct-1: #2f9e5c;
   --state-correct-2: #d9a82a;
   --state-correct-3: #f0d47c;
@@ -101,10 +105,14 @@
   --river: #6fa8e8;
   --river-hover: #9cc4f2;
   --zone-stroke: #e08a3c;
-  --leader: #c5ced6;
+  --leader: #0f1419;
+  --leader-halo: drop-shadow(0 0 1.5px rgb(255 255 255 / 0.9));
+  --marker-fill: #ffffff;
+  --marker-stroke: #0f1419;
   --city-fill: #ffffff;
-  --city-stroke: #3d4a55;
+  --city-stroke: #0f1419;
   --city-selected: #bcd3f2;
+  --inset-stroke: rgb(255 255 255 / 0.4);
 }
 
 /* ─── Base ─── */
@@ -879,11 +887,13 @@ p {
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
+  filter: var(--leader-halo);
 }
 
+/* Le cercle doit se lire sur la terre (claire) comme sur la mer (sombre) : fond blanc, contour foncé. */
 .micro circle {
-  fill: var(--land-target);
-  stroke: var(--leader);
+  fill: var(--marker-fill);
+  stroke: var(--marker-stroke);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
   transition: fill 150ms ease;
@@ -925,7 +935,7 @@ p {
 }
 
 .city {
-  stroke: var(--leader);
+  stroke: var(--city-stroke);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
   transition: fill 150ms ease;
@@ -987,7 +997,7 @@ p {
 
 .inset-frame {
   fill: var(--ocean);
-  stroke: rgb(var(--ink) / 0.35);
+  stroke: var(--inset-stroke);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
