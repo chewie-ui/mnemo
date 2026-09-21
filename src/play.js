@@ -10,7 +10,7 @@ import { LANGUAGES } from './data/languages.js';
 import { CURRENCIES } from './data/currencies.js';
 import { get, post } from './api.js';
 import { levelTargets, completeLevel, starRow } from './campaign.js';
-import { $, flagUrl, escapeHtml, refreshIcons } from './ui.js';
+import { $, flagUrl, escapeHtml, refreshIcons, toast } from './ui.js';
 
 const ui = {
   promptLabel: document.querySelector('.prompt-label'),
@@ -44,6 +44,39 @@ let confirmMode = false;
 let pending = null; // { id, at } : zone surlignée en attente de validation
 
 let session = null; // { region, mode, game, map, timer, duel, poll }
+
+// Partie en cours gardée sur l'appareil : un rechargement de page reprend là où on en était.
+// Une seule à la fois, oubliée après 3 h ou quand on quitte volontairement.
+const RESUME_KEY = 'mnemo:resume';
+const RESUME_TTL = 3 * 3600_000;
+const resumeKey = (region, mode, duel, level) => `${region.id}|${mode}|${level?.id ?? ''}|${duel?.id ?? ''}`;
+
+function readResume(key) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(RESUME_KEY));
+    if (saved?.key === key && Date.now() - saved.savedAt < RESUME_TTL) return saved.snap;
+  } catch {
+    /* rien de valable */
+  }
+  return null;
+}
+
+function persistGame() {
+  if (!session || session.game.done) return;
+  try {
+    localStorage.setItem(RESUME_KEY, JSON.stringify({ key: session.key, snap: session.game.snapshot(), savedAt: Date.now() }));
+  } catch {
+    /* stockage indisponible */
+  }
+}
+
+function clearResume() {
+  try {
+    localStorage.removeItem(RESUME_KEY);
+  } catch {
+    /* stockage indisponible */
+  }
+}
 
 function clearPending() {
   if (pending) session?.map.setSelected(null);
@@ -94,14 +127,17 @@ export async function startGame(region, mode, duel = null, level = null) {
   ui.grid.innerHTML = '';
 
   const targets = level ? levelTargets(level) : targetsFor(region, mode);
-  const game = new Game(targets, duel?.seed ?? null);
+  const key = resumeKey(region, mode, duel, level);
+  const saved = readResume(key);
+  const game = new Game(targets, duel?.seed ?? saved?.seed ?? null);
+  if (saved) game.restore(saved);
   // « Trouve le drapeau » se joue sur une grille de drapeaux, pas sur la carte.
   const isGrid = mode === 'flagpick';
   ui.svg.hidden = isGrid;
   ui.grid.hidden = !isGrid;
   ui.zoomControls.hidden = isGrid;
-  const map = isGrid ? new FlagGrid(ui.grid, targets, duel?.seed ?? null) : new GameMap(ui.svg, region, targets, mode, { restrict: Boolean(level) });
-  session = { region, mode, game, map, timer: null, duel, level, poll: null, lastProgressSent: 0 };
+  const map = isGrid ? new FlagGrid(ui.grid, targets, game.seed) : new GameMap(ui.svg, region, targets, mode, { restrict: Boolean(level) });
+  session = { region, mode, game, map, timer: null, duel, level, poll: null, lastProgressSent: 0, key };
   if (level) {
     ui.levelTag.hidden = false;
     ui.levelTag.textContent = `Niveau ${level.number} · ${level.title}`;
@@ -118,8 +154,19 @@ export async function startGame(region, mode, duel = null, level = null) {
   if (session?.game !== game) return; // l'utilisateur a quitté pendant le chargement
   ui.loading.hidden = true;
 
-  // Le chrono démarre quand la carte est visible, pas pendant le chargement.
-  game.startedAt = Date.now();
+  if (saved) {
+    // Reprise : on recolore ce qui a déjà été joué, et la réponse en attente si on était en plein raté.
+    for (const r of game.results) map.setState(r.zone ?? r.id, r.ok ? `correct-${r.attempts}` : 'failed');
+    if (game.revealing && game.current) for (const z of zonesOf(game.current)) map.setState(z, 'reveal');
+    toast('Partie reprise là où tu en étais.');
+  } else {
+    // Le chrono démarre quand la carte est visible, pas pendant le chargement.
+    game.startedAt = Date.now();
+  }
+  if (game.done) {
+    finishGame();
+    return;
+  }
   session.timer = setInterval(() => {
     ui.time.textContent = formatTime(game.elapsedMs);
   }, 500);
@@ -265,12 +312,16 @@ function handleAnswer(id, at) {
 
   updateHud();
   if (game.done) finishGame();
-  else if (res.type === 'correct' || res.type === 'confirmed') sendProgress();
+  else {
+    persistGame();
+    if (res.type === 'correct' || res.type === 'confirmed') sendProgress();
+  }
 }
 
 async function finishGame() {
   const { region, mode, game } = session;
   clearInterval(session.timer);
+  clearResume();
   ui.tip.hidden = true;
   ui.promptFlag.hidden = true;
   const stats = game.stats;
@@ -380,6 +431,7 @@ document.addEventListener('keydown', (e) => {
 
 $('btn-quit').addEventListener('click', () => {
   if (session?.duel && !session.game.done && !window.confirm('Quitter le défi ? Tu abandonnes cette manche : ton adversaire pourra la finir et la gagner.')) return;
+  clearResume();
   location.hash = session?.duel ? '#/amis' : '#/';
 });
 $('btn-home').addEventListener('click', () => {

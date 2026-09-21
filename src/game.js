@@ -29,7 +29,9 @@ export function shuffle(list, seed) {
 
 export class Game {
   constructor(targets, seed = null) {
-    this.queue = shuffle(targets, seed);
+    // Une graine, toujours : l'ordre des questions peut ainsi être reproduit (défi, reprise après rechargement).
+    this.seed = seed || (Math.floor(Math.random() * 0xffffffff) >>> 0) || 1;
+    this.queue = shuffle(targets, this.seed);
     this.index = 0;
     this.attempts = 0; // essais ratés sur la cible courante
     this.revealing = false; // la bonne réponse est affichée, on attend le clic de validation
@@ -64,14 +66,14 @@ export class Game {
 
     if (this.revealing) {
       if (!matches) return { type: 'ignored', target };
-      this.results.push({ ...target, attempts: MAX_ATTEMPTS, ok: false });
+      this.results.push({ ...target, attempts: MAX_ATTEMPTS, ok: false, zone: id });
       this.#advance();
       return { type: 'confirmed', target };
     }
 
     if (matches) {
       const attempts = this.attempts + 1;
-      this.results.push({ ...target, attempts, ok: true });
+      this.results.push({ ...target, attempts, ok: true, zone: id });
       this.#advance();
       return { type: 'correct', attempts, target };
     }
@@ -89,6 +91,29 @@ export class Game {
     this.attempts = 0;
     this.revealing = false;
     if (this.index >= this.queue.length) this.endedAt = Date.now();
+  }
+
+  // De quoi reprendre exactement où on en était après un rechargement de page.
+  snapshot() {
+    return {
+      seed: this.seed,
+      index: this.index,
+      attempts: this.attempts,
+      revealing: this.revealing,
+      startedAt: this.startedAt,
+      results: this.results.map((r) => ({ id: r.id, attempts: r.attempts, ok: r.ok, zone: r.zone })),
+    };
+  }
+
+  // À appeler sur une partie neuve créée avec la même graine (même file de questions).
+  restore(snap) {
+    const byId = new Map(this.queue.map((t) => [t.id, t]));
+    this.results = snap.results.filter((r) => byId.has(r.id)).map((r) => ({ ...byId.get(r.id), attempts: r.attempts, ok: r.ok, zone: r.zone }));
+    this.index = Math.min(snap.index, this.queue.length);
+    this.attempts = snap.attempts;
+    this.revealing = snap.revealing;
+    this.startedAt = snap.startedAt;
+    this.endedAt = this.index >= this.queue.length ? Date.now() : null;
   }
 
   get stats() {
