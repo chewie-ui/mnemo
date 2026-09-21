@@ -12,8 +12,8 @@ Une section **Histoire** propose les États d'une époque (Europe et Monde en 19
 
 ```bash
 npm install
-npm run api    # API PHP sur http://127.0.0.1:8080 (PHP 8.1+ requis) — SQLite par défaut, rien à configurer
-npm run dev    # site sur http://localhost:5173, /api renvoyé vers PHP
+npm run dev    # site sur http://localhost:5173 + API PHP sur 127.0.0.1:8080 (SQLite, rien à configurer)
+               # (npm run web : Vite seul ; npm run api : PHP seul)
 ```
 
 La configuration vient d'un fichier `.env` (voir `.env.example`), jamais versionné. Sans `.env`, l'API utilise SQLite dans `api/data/` — en local, ne crée donc pas de `.env` tant que tu n'as pas de vraie base MySQL (un `.env` avec les valeurs d'exemple casse l'API).
