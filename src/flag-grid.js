@@ -37,7 +37,6 @@ export class FlagGrid {
       const img = document.createElement('img');
       img.src = flagUrl(t.tile);
       img.alt = '';
-      img.loading = 'lazy';
       img.draggable = false;
       // Coche (ou croix) qui apparait une fois la tuile jouee : le drapeau, lui, s'estompe.
       const mark = document.createElement('span');

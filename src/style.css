@@ -56,6 +56,9 @@
   --state-failed: #c8464c;
 
   --topbar-h: 60px;
+  --tabbar-h: 0px; /* barre d'onglets du bas, mobile seulement */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
   --radius: 10px;
   --shadow: 0 1px 2px rgb(var(--ink) / 0.06), 0 4px 12px rgb(var(--ink) / 0.06);
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -127,6 +130,12 @@ body {
   margin: 0;
 }
 
+html {
+  /* Pas de « tirer pour rafraîchir » ni de rebond de page : la page se comporte comme une appli. */
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   font-family: var(--font);
   font-size: 16px;
@@ -138,6 +147,25 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;
+  padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+body.in-game {
+  padding-bottom: 0;
+}
+
+button,
+a,
+.flag-tile,
+.map {
+  -webkit-touch-callout: none;
+}
+
+img {
+  max-width: 100%;
+  -webkit-user-drag: none;
 }
 
 h1,
@@ -193,6 +221,7 @@ p {
   position: sticky;
   top: 0;
   z-index: 15;
+  padding-top: var(--safe-top);
 }
 
 /* Même colonne centrée que le contenu, pour que rien ne colle aux bords. */
@@ -564,8 +593,8 @@ p {
 /* ─── Partie ─── */
 /* L'écran de jeu remplit exactement ce qui reste sous le header : pas de scroll. */
 .game {
-  height: calc(100vh - var(--topbar-h));
-  height: calc(100dvh - var(--topbar-h));
+  height: calc(100vh - var(--topbar-h) - var(--safe-top));
+  height: calc(100dvh - var(--topbar-h) - var(--safe-top));
   flex: none;
   min-height: 0;
   overflow: hidden;
@@ -745,6 +774,7 @@ p {
   justify-content: center;
   padding: 6px;
   min-height: 44px;
+  aspect-ratio: 4 / 3;
   border: 3px solid transparent;
   border-radius: 10px;
   background: var(--surface);
@@ -756,7 +786,7 @@ p {
 .flag-tile img {
   display: block;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: 100%;
   object-fit: contain;
   border-radius: 4px;
   box-shadow: 0 0 0 1px rgb(var(--ink) / 0.15);
@@ -876,8 +906,8 @@ p {
 
 @media (max-width: 640px) {
   .flag-grid {
-    grid-template-columns: repeat(auto-fill, 100px);
-    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
     padding: 12px;
   }
 }
@@ -1266,21 +1296,67 @@ p {
     font-size: 16px;
   }
 
+  /* Barre de jeu compacte : ligne 1 = Quitter + question, ligne 2 = compteurs + Confirmer. */
   .game-bar {
-    gap: 12px;
+    gap: 8px 12px;
+    padding: 8px 12px;
+  }
+
+  #btn-quit span {
+    display: none;
+  }
+
+  #btn-quit {
+    width: 40px;
+    min-height: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .prompt {
+    min-width: 0;
+    flex: 1 1 200px;
+    gap: 6px;
+  }
+
+  .prompt-label {
+    font-size: 14px;
   }
 
   .prompt strong {
-    font-size: 20px;
+    font-size: 19px;
+    line-height: 1.2;
+  }
+
+  .prompt .feedback {
+    flex-basis: 100%;
+    font-size: 13px;
+  }
+
+  .game-bar .switch {
+    order: 3;
+    font-size: 12px;
   }
 
   .hud {
-    width: 100%;
-    justify-content: space-between;
+    order: 2;
+    flex: 1;
+    gap: 16px;
+    justify-content: flex-start;
   }
 
   .hud div {
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .hud dt {
+    font-size: 11px;
+  }
+
+  .hud dd {
+    font-size: 16px;
   }
 
   .modal {
@@ -2127,7 +2203,7 @@ p {
     display: none;
   }
 
-  .user-btn span {
+  .user-btn #user-label {
     display: none;
   }
 
@@ -2353,7 +2429,7 @@ p {
 
 @media (max-width: 767px) {
   .switch-label {
-    display: none;
+    font-size: 12px;
   }
 }
 
@@ -2867,5 +2943,88 @@ p {
   .level .stars,
   .level .level-play {
     grid-column: 2;
+  }
+}
+
+/* ─── Barre d'onglets du bas (mobile) : comme une application ─── */
+.tabbar {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --tabbar-h: 60px;
+  }
+
+  .topnav {
+    display: none;
+  }
+
+  .tabbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 15;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    height: calc(var(--tabbar-h) + var(--safe-bottom));
+    padding-bottom: var(--safe-bottom);
+    background: var(--surface);
+    box-shadow: 0 -1px 0 var(--border);
+  }
+
+  body.in-game .tabbar {
+    display: none;
+  }
+
+  .tabbar a {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 44px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+
+  .tabbar a .lucide {
+    width: 24px;
+    height: 24px;
+  }
+
+  .tabbar a.is-active {
+    color: var(--accent);
+  }
+
+  .tabbar a:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: -3px;
+    border-radius: 8px;
+  }
+
+  .tabbar .nav-badge {
+    position: absolute;
+    top: 6px;
+    left: calc(50% + 6px);
+    margin: 0;
+  }
+
+  /* Les éléments fixés en bas passent au-dessus de la barre d'onglets. */
+  .toast {
+    bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 16px);
+  }
+
+  body.in-game .toast {
+    bottom: 24px;
+  }
+
+  .invite-banner {
+    bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 12px);
   }
 }

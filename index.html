@@ -2,7 +2,11 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Mnemo" />
     <meta name="description" content="Apprends en jouant : géographie, histoire, pays en détail, et tes propres leçons en cartes mémo." />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#ffffff" />
@@ -16,6 +20,8 @@
     </script>
     <title>Mnemo — Apprendre en jouant</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
@@ -31,7 +37,7 @@
         <a href="#/#histoire">Histoire</a>
         <a href="#/#pays">Pays en détail</a>
         <a href="#/memos">Mes mémos</a>
-        <a href="#/amis">Amis <span id="nav-badge" class="badge" hidden>0</span></a>
+        <a href="#/amis">Amis <span id="nav-badge" class="badge nav-badge" data-nav-badge hidden>0</span></a>
       </nav>
       <div class="user-area">
         <a class="btn btn-ghost btn-icon settings-btn" href="#/reglages" aria-label="Réglages" title="Réglages"><i data-lucide="settings" aria-hidden="true"></i></a>
@@ -92,7 +98,7 @@
     <!-- Partie en cours -->
     <main id="screen-game" class="screen game" hidden>
       <div class="game-bar">
-        <button id="btn-quit" class="btn btn-ghost" type="button">
+        <button id="btn-quit" class="btn btn-ghost" type="button" aria-label="Quitter la partie">
           <i data-lucide="arrow-left" aria-hidden="true"></i>
           <span>Quitter</span>
         </button>
@@ -497,6 +503,13 @@
     </div>
 
     <div id="invite-banner" class="invite-banner" role="status" hidden></div>
+    <nav id="tabbar" class="tabbar" aria-label="Navigation principale">
+      <a href="#/" data-tab="home"><i data-lucide="house" aria-hidden="true"></i><span>Accueil</span></a>
+      <a href="#/campagne" data-tab="campaign"><i data-lucide="flag" aria-hidden="true"></i><span>Campagne</span></a>
+      <a href="#/memos" data-tab="memos"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Mémos</span></a>
+      <a href="#/amis" data-tab="friends"><i data-lucide="users" aria-hidden="true"></i><span>Amis</span><span class="badge nav-badge" data-nav-badge hidden>0</span></a>
+      <a href="#/reglages" data-tab="settings"><i data-lucide="settings" aria-hidden="true"></i><span>Réglages</span></a>
+    </nav>
     <div id="toast" class="toast" role="status" hidden></div>
 
     <script type="module" src="/src/main.js"></script>

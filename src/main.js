@@ -131,4 +131,12 @@ async function boot() {
   if (!location.hash.startsWith('#/play/') && !location.hash.startsWith('#/duel/') && !location.hash.startsWith('#/campagne/')) route();
 }
 
+// Comportement « application » : pas de zoom de page par pincement (Safari iOS ignore user-scalable=no ;
+// le double tap est déjà neutralisé par touch-action: manipulation). Le zoom de la carte, lui, reste libre.
+for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+  document.addEventListener(type, (e) => {
+    if (!e.target.closest?.('#map')) e.preventDefault();
+  }, { passive: false });
+}
+
 boot();

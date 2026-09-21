@@ -198,9 +198,10 @@ async function checkInbox() {
     return;
   }
   const pending = inbox.invites.length + inbox.ready.length;
-  const badge = $('nav-badge');
-  badge.hidden = pending === 0;
-  badge.textContent = String(pending);
+  for (const badge of document.querySelectorAll('[data-nav-badge]')) {
+    badge.hidden = pending === 0;
+    badge.textContent = String(pending);
+  }
   document.title = pending ? `(${pending}) Mnemo — Apprendre en jouant` : 'Mnemo — Apprendre en jouant';
   // La bannière disparaît dès que l'invitation n'est plus en attente (acceptée, refusée, annulée).
   const banner = $('invite-banner');
@@ -239,7 +240,7 @@ export function startInboxWatch() {
 export function stopInboxWatch() {
   clearInterval(inboxTimer);
   inboxTimer = null;
-  $('nav-badge').hidden = true;
+  for (const badge of document.querySelectorAll('[data-nav-badge]')) badge.hidden = true;
   $('invite-banner').hidden = true;
   document.title = 'Mnemo — Apprendre en jouant';
 }
