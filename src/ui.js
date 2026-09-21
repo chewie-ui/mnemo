@@ -2,13 +2,13 @@
 import {
   createIcons, Globe, ArrowLeft, Plus, Minus, Maximize, RotateCcw, Trophy, Map, MapPin, Building2, Waves, Sailboat,
   Landmark, Flag, MapPinned, Search, CircleUserRound, BarChart3, NotebookPen, LogOut, Play, X, Check, Trash2, Pencil,
-  BookOpen, ListChecks, Clock, Eye, Languages, Coins, Castle, ChevronDown, ChevronUp, Users, Swords, UserPlus, Star, Award, Lock, ArrowRight, Settings, Monitor, Sun, Moon, Mail, LayoutGrid, House, Folder, FolderPlus, FolderOpen, FolderInput, FilePlus2, FileText, Ellipsis, ChevronRight, BookOpenText,
+  BookOpen, ListChecks, Clock, Eye, Languages, Coins, Castle, ChevronDown, ChevronUp, Users, Swords, UserPlus, Star, Award, Lock, ArrowRight, Settings, Monitor, Sun, Moon, Mail, LayoutGrid, House, Folder, FolderPlus, FolderOpen, FolderInput, FilePlus2, FileText, Ellipsis, ChevronRight, BookOpenText, WandSparkles,
   Cat, Dog, Bird, Fish, Rabbit, Squirrel, Turtle, Snail, Bug, Ghost, Bot, Skull, Rocket, Crown, Heart, Zap, Flame, Leaf, Mountain, Anchor, Compass, Sword, Shield, Gamepad2, Palette, Music, Pizza, Dices,
 } from 'lucide';
 
 const icons = {
   Globe, ArrowLeft, Plus, Minus, Maximize, RotateCcw, Trophy, Map, MapPin, Building2, Waves, Sailboat, Landmark, Flag,
-  MapPinned, Search, CircleUserRound, BarChart3, NotebookPen, LogOut, Play, X, Check, Trash2, Pencil, BookOpen, ListChecks, Clock, Eye, Languages, Coins, Castle, ChevronDown, ChevronUp, Users, Swords, UserPlus, Star, Award, Lock, ArrowRight, Settings, Monitor, Sun, Moon, Mail, LayoutGrid, House, Folder, FolderPlus, FolderOpen, FolderInput, FilePlus2, FileText, Ellipsis, ChevronRight, BookOpenText,
+  MapPinned, Search, CircleUserRound, BarChart3, NotebookPen, LogOut, Play, X, Check, Trash2, Pencil, BookOpen, ListChecks, Clock, Eye, Languages, Coins, Castle, ChevronDown, ChevronUp, Users, Swords, UserPlus, Star, Award, Lock, ArrowRight, Settings, Monitor, Sun, Moon, Mail, LayoutGrid, House, Folder, FolderPlus, FolderOpen, FolderInput, FilePlus2, FileText, Ellipsis, ChevronRight, BookOpenText, WandSparkles,
   Cat, Dog, Bird, Fish, Rabbit, Squirrel, Turtle, Snail, Bug, Ghost, Bot, Skull, Rocket, Crown, Heart, Zap, Flame, Leaf, Mountain, Anchor, Compass, Sword, Shield, Gamepad2, Palette, Music, Pizza, Dices,
 };
 

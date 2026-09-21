@@ -177,7 +177,10 @@
       <div class="page-head">
         <a id="note-back" class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Mes cours</span></a>
         <h1 id="note-title">Note</h1>
-        <a id="note-edit" class="btn btn-ghost page-action" href="#/memos"><i data-lucide="pencil" aria-hidden="true"></i><span>Modifier</span></a>
+        <div class="page-action note-actions">
+          <button id="note-to-deck" class="btn btn-primary" type="button"><i data-lucide="wand-sparkles" aria-hidden="true"></i><span>En faire une leçon</span></button>
+          <a id="note-edit" class="btn btn-ghost" href="#/memos"><i data-lucide="pencil" aria-hidden="true"></i><span>Modifier</span></a>
+        </div>
       </div>
       <p id="note-meta" class="muted small"></p>
       <article id="note-body" class="note-article"></article>
@@ -517,6 +520,35 @@
     </div>
 
     <!-- Connexion / inscription -->
+    <div id="n2d-modal" class="modal-backdrop" hidden>
+      <form id="n2d-form" class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="n2d-heading" novalidate>
+        <h2 id="n2d-heading">Transformer en leçon</h2>
+        <p class="note">Chaque ligne « <strong>terme : définition</strong> » de la note devient une carte question → réponse. Tu pourras tout retoucher ensuite.</p>
+        <div class="field">
+          <label for="n2d-title">Titre de la leçon</label>
+          <input id="n2d-title" type="text" maxlength="120" required />
+        </div>
+        <div class="field">
+          <label for="n2d-sep">Séparateur</label>
+          <select id="n2d-sep">
+            <option value="auto">Automatique</option>
+            <option value="colon">Deux-points ( : )</option>
+            <option value="arrow">Flèche ( => ou → )</option>
+            <option value="dash">Tiret ( — )</option>
+            <option value="equal">Égal ( = )</option>
+            <option value="tab">Tabulation / double espace</option>
+          </select>
+        </div>
+        <p id="n2d-count" class="muted small"></p>
+        <ul id="n2d-preview" class="n2d-preview"></ul>
+        <p id="n2d-error" class="form-error" role="alert" hidden></p>
+        <div class="hero-actions">
+          <button id="n2d-submit" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Créer la leçon</span></button>
+          <button id="n2d-cancel" class="btn btn-ghost" type="button"><span>Annuler</span></button>
+        </div>
+      </form>
+    </div>
+
     <div id="name-modal" class="modal-backdrop" hidden>
       <form id="name-modal-form" class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="name-modal-title" novalidate>
         <h2 id="name-modal-title">Nouveau dossier</h2>

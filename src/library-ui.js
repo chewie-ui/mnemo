@@ -5,6 +5,7 @@ import { store as deckStore, SAMPLE_DECK, quizReady } from './memos.js';
 import { currentUser } from './auth.js';
 import { ApiError } from './api.js';
 import { $, refreshIcons, escapeHtml, toast, setLoading, formatDate } from './ui.js';
+import { openNoteToDeck, initNoteToDeck, extractCards } from './note-to-deck.js';
 
 const errorText = (err, fallback) => (err instanceof ApiError || err instanceof Error ? err.message : fallback);
 const same = (a, b) => String(a ?? '') === String(b ?? '');
@@ -266,6 +267,13 @@ function openMenu(btn) {
     menu.open(btn, [
       { act: 'read', icon: 'book-open-text', label: 'Lire', run: () => (location.hash = `#/notes/${n.id}`) },
       { act: 'edit', icon: 'pencil', label: 'Modifier', run: () => (location.hash = `#/notes/${n.id}/edit`) },
+      { act: 'deck', icon: 'wand-sparkles', label: 'En faire une leçon', run: async () => {
+        try {
+          openNoteToDeck(await library().getNote(n.id));
+        } catch (err) {
+          toast(errorText(err, 'Note introuvable.'));
+        }
+      } },
       { act: 'move', icon: 'folder-input', label: 'Déplacer', run: async () => {
         const r = await askFolder({ title: `Déplacer « ${n.title} » vers`, current: n.folderId });
         if (r) await run(() => library().move('note', n.id, r.folderId), 'Note déplacée.');
@@ -280,6 +288,7 @@ function openMenu(btn) {
 
 // ─── Notes : lecture et édition ───
 let editingNote = null; // { id } ou null
+let currentNote = null; // note affichée en lecture
 
 export async function renderNote(id) {
   const body = $('note-body');
@@ -298,6 +307,10 @@ export async function renderNote(id) {
   back.href = folderHash(note.folderId);
   back.querySelector('span').textContent = folderPath(tree?.folders ?? [], note.folderId).pop()?.name ?? 'Mes cours';
   $('note-edit').href = `#/notes/${note.id}/edit`;
+  currentNote = note;
+  const detected = extractCards(note.body).length;
+  $('note-to-deck').hidden = detected === 0;
+  $('note-to-deck').querySelector('span').textContent = detected ? `En faire une leçon (${detected})` : 'En faire une leçon';
   $('note-meta').textContent = `Modifiée le ${formatDate(note.updatedAt)}`;
   body.innerHTML = note.body.trim() ? `<div class="note-content">${renderMarkdown(note.body)}</div>` : '<p class="note">Cette note est vide. Modifie-la pour y écrire ton cours.</p>';
   refreshIcons();
@@ -350,6 +363,8 @@ function autosize(textarea) {
 }
 
 export function initLibrary() {
+  initNoteToDeck();
+  $('note-to-deck').addEventListener('click', () => currentNote && openNoteToDeck(currentNote));
   $('lib-new-folder').addEventListener('click', newFolder);
   $('library-body').addEventListener('click', async (e) => {
     const menuBtn = e.target.closest('.lib-menu-btn');
