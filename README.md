@@ -26,7 +26,6 @@ Sans l'API, le site fonctionne quand même : comptes désactivés, scores et mé
 - **Stats** (`#/stats`) : chaque partie terminée est enregistrée pour un utilisateur connecté (carte, mode, score, temps, erreurs).
 - **Campagne** (`#/campagne`) : 7 chapitres, 65 niveaux courts du plus simple au plus complet (`src/data/campaign.js`), étoiles (70 % / 90 % / sans faute), déblocage progressif, trophées par étoile et badge par chapitre ; progression locale + serveur (`api/campaign.php`).
 - **Amis et défis** (`#/amis`) : ajout d'amis par pseudo, défis sur n'importe quelle carte : le lanceur attend dans une salle d'attente, l'ami reçoit une notification (bandeau + badge, relevé toutes les 10 s), accepte, et les deux passent par un écran VS avec compte à rebours avant la même partie (même ordre de questions grâce à une graine partagée, progression de l'adversaire relue toutes les 3 s, meilleur score puis meilleur temps). Classement par trophées (`api/friends.php`, `api/duels.php`, `src/duel-ui.js`).
-- **Mémos** (`#/memos`) : leçons de cartes question → réponse, révision par répétition espacée (SM-2 simplifié, `src/memos.js`) et quiz à choix multiples dès 4 cartes.
 
 ## Déployer sur Infomaniak (PHP + MySQL)
 

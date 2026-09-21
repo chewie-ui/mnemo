@@ -260,6 +260,7 @@ p {
   border-radius: var(--radius);
   border: 1px solid transparent;
   font: inherit;
+  text-decoration: none;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
@@ -3026,5 +3027,310 @@ p {
 
   .invite-banner {
     bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 12px);
+  }
+}
+
+/* ─── Bibliothèque de cours ─── */
+.crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: -12px 0 16px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.crumbs:empty {
+  display: none;
+}
+
+.crumbs a {
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.crumbs a:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.crumbs a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.crumbs .lucide {
+  width: 16px;
+  height: 16px;
+}
+
+.crumbs [aria-current] {
+  color: var(--text);
+  font-weight: 600;
+  padding: 4px 6px;
+}
+
+.library-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.lib-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  margin: 24px 0 12px;
+  color: var(--text);
+}
+
+.lib-section:first-child {
+  margin-top: 0;
+}
+
+.lib-section .lucide {
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+}
+
+.lib-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.lib-card {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 6px 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: border-color 150ms ease;
+}
+
+.lib-card:hover {
+  border-color: var(--border-strong);
+}
+
+.lib-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+
+.lib-main:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+
+.lib-folder .lib-main > .lucide {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.lib-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lib-text strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lib-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lib-card-head .name {
+  flex: 1;
+  min-width: 0;
+}
+
+.lib-card-head .name a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.lib-card-head .name a:hover {
+  color: var(--accent);
+}
+
+.lib-menu-btn {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.lib-menu {
+  position: absolute;
+  z-index: 30;
+  width: 220px;
+  display: block;
+}
+
+.menu-item.is-danger {
+  color: var(--danger);
+}
+
+.modal-small {
+  max-width: 420px;
+}
+
+/* Notes de cours */
+.note-article {
+  max-width: 720px;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-top: 12px;
+}
+
+.note-content {
+  line-height: 1.65;
+  font-size: 17px;
+}
+
+.note-content > * + * {
+  margin-top: 12px;
+}
+
+.note-content h2 {
+  font-size: 22px;
+  margin-top: 28px;
+}
+
+.note-content h3 {
+  font-size: 18px;
+  margin-top: 22px;
+}
+
+.note-content h4 {
+  font-size: 16px;
+  margin-top: 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.note-content ul,
+.note-content ol {
+  padding-left: 24px;
+}
+
+.note-content li + li {
+  margin-top: 4px;
+}
+
+.note-content blockquote {
+  margin: 12px 0;
+  padding: 8px 16px;
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 8px 8px 0;
+}
+
+.note-content code {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.92em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+.note-content mark {
+  background: var(--gold-soft);
+  color: var(--gold-text);
+  padding: 0 3px;
+  border-radius: 3px;
+}
+
+.note-content hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}
+
+.note-textarea {
+  width: 100%;
+  min-height: 240px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.note-textarea:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+
+.field select {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.field select:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+
+.deck-form .note code {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 13px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+@media (max-width: 640px) {
+  .lib-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .note-article {
+    padding: 16px;
+  }
+
+  .note-content {
+    font-size: 16px;
   }
 }

@@ -7,7 +7,8 @@ import { initAccount, initReset, renderReset, renderConfirmEmail } from './accou
 import { renderHome } from './home.js';
 import { startGame, stopSession } from './play.js';
 import { renderStats } from './stats.js';
-import { renderMemosList, renderDeckEditor, renderStudy } from './memos-ui.js';
+import { renderDeckEditor, renderStudy } from './memos-ui.js';
+import { renderLibrary, renderNote, renderNoteEditor, initLibrary } from './library-ui.js';
 import { renderFriends, initFriends } from './friends.js';
 import { openDuel, stopDuelWatch, startInboxWatch, stopInboxWatch } from './duel-ui.js';
 import { renderCampaign, levelById, isUnlocked, loadProgress } from './campaign.js';
@@ -58,10 +59,25 @@ function route() {
     renderStats();
   } else if (hash === '#/memos') {
     showScreen('memos');
-    renderMemosList();
+    renderLibrary(null);
+  } else if ((m = hash.match(/^#\/memos\/f\/([\w-]+)$/))) {
+    showScreen('memos');
+    renderLibrary(m[1]);
+  } else if ((m = hash.match(/^#\/memos\/new(?:\/([\w-]+))?$/))) {
+    showScreen('deck');
+    renderDeckEditor('new', m[1] ?? null);
   } else if ((m = hash.match(/^#\/memos\/([\w-]+)$/))) {
     showScreen('deck');
     renderDeckEditor(m[1]);
+  } else if ((m = hash.match(/^#\/notes\/new(?:\/([\w-]+))?$/))) {
+    showScreen('note-edit');
+    renderNoteEditor('new', m[1] ?? null);
+  } else if ((m = hash.match(/^#\/notes\/([\w-]+)\/edit$/))) {
+    showScreen('note-edit');
+    renderNoteEditor(m[1]);
+  } else if ((m = hash.match(/^#\/notes\/([\w-]+)$/))) {
+    showScreen('note');
+    renderNote(m[1]);
   } else if ((m = hash.match(/^#\/(study|quiz)\/([\w-]+)$/))) {
     showScreen('study');
     renderStudy(m[2], m[1]);
@@ -109,9 +125,10 @@ async function boot() {
   initReset();
   initSettings();
   initFriends();
+  initLibrary();
   window.addEventListener('hashchange', route);
   // Les pages qui lisent une leçon attendent de savoir qui est connecté (stockage local ou serveur).
-  if (!/^#\/(memos|study|quiz|confirm-email)\//.test(location.hash)) route();
+  if (!/^#\/(memos|notes|study|quiz|confirm-email)(\/|$)/.test(location.hash)) route();
   // Le compte se charge en arrière-plan ; l'accueil se rafraîchit quand on sait qui joue.
   await loadUser();
   await refreshServerBests();

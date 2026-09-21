@@ -1,62 +1,35 @@
 // Écrans des mémos : liste des leçons, éditeur, révision (cartes) et quiz (QCM).
-import { store, isDue, schedule, previewInterval, GRADES, SAMPLE_DECK, hasLocalDecks, cleanWrong, quizReady } from './memos.js';
+import { store, isDue, schedule, previewInterval, GRADES, hasLocalDecks, cleanWrong, quizReady } from './memos.js';
+import { library, flattenFolders } from './library.js';
+import { folderHash } from './library-ui.js';
 import { currentUser } from './auth.js';
 import { ApiError } from './api.js';
 import { $, refreshIcons, escapeHtml, toast, setLoading } from './ui.js';
 
 const errorText = (err, fallback) => (err instanceof ApiError || err instanceof Error ? err.message : fallback);
 
-// ─── Liste ───
-export async function renderMemosList() {
-  const list = $('memos-list');
-  const empty = $('memos-empty');
-  const note = $('memos-note');
-  note.hidden = Boolean(currentUser());
-  note.textContent = 'Sans compte, tes leçons restent dans ce navigateur. Connecte-toi pour les retrouver partout.';
-  list.innerHTML = '<p class="note">Chargement…</p>';
-  let decks;
-  try {
-    decks = await store().list();
-  } catch (err) {
-    list.innerHTML = `<p class="form-error">${escapeHtml(errorText(err, 'Impossible de charger tes leçons.'))}</p>`;
-    return;
-  }
-  list.innerHTML = '';
-  empty.hidden = decks.length > 0;
-  for (const deck of decks) {
-    const card = document.createElement('article');
-    card.className = 'region-card deck-card';
-    card.setAttribute('role', 'listitem');
-    card.innerHTML = `
-      <h3 class="name">${escapeHtml(deck.title)}</h3>
-      ${deck.description ? `<p class="desc">${escapeHtml(deck.description)}</p>` : ''}
-      <p class="deck-meta"><span>${deck.cards} carte${deck.cards > 1 ? 's' : ''}${deck.qcm ? ` · ${deck.qcm} QCM` : ''}</span>${deck.due ? `<span class="due">${deck.due} à réviser</span>` : '<span>Rien à réviser pour l’instant</span>'}</p>
-      <div class="actions">
-        <a class="btn btn-primary" href="#/study/${deck.id}"><i data-lucide="book-open" aria-hidden="true"></i><span>Réviser</span></a>
-        <a class="btn btn-ghost" href="#/quiz/${deck.id}" ${quizReady(deck) ? '' : 'aria-disabled="true" title="Il faut au moins 4 cartes, ou des mauvaises réponses sur chaque carte, pour un quiz"'}><i data-lucide="list-checks" aria-hidden="true"></i><span>Quiz</span></a>
-        <a class="btn btn-ghost" href="#/memos/${deck.id}"><i data-lucide="pencil" aria-hidden="true"></i><span>Modifier</span></a>
-      </div>`;
-    list.appendChild(card);
-  }
-  refreshIcons();
-}
-
-$('memos-sample').addEventListener('click', async (e) => {
-  setLoading(e.currentTarget, true);
-  try {
-    await store().save(SAMPLE_DECK);
-    await renderMemosList();
-  } catch (err) {
-    toast(errorText(err, 'Impossible d’ajouter la leçon.'));
-  } finally {
-    setLoading(e.currentTarget, false);
-  }
-});
-
 // ─── Éditeur ───
 let editing = null; // { id } ou null pour une nouvelle leçon
 
-export async function renderDeckEditor(id) {
+let folders = [];
+
+async function fillFolderSelect(selected) {
+  try {
+    folders = (await library().tree()).folders;
+  } catch {
+    folders = [];
+  }
+  const select = $('deck-folder');
+  select.innerHTML = `<option value="">Mes cours (racine)</option>${flattenFolders(folders).map((f) => `<option value="${escapeHtml(String(f.id))}">${'\u00a0\u00a0'.repeat(f.depth)}${escapeHtml(f.name)}</option>`).join('')}`;
+  select.value = selected == null ? '' : String(selected);
+}
+
+const selectedFolder = () => {
+  const v = $('deck-folder').value;
+  return v === '' ? null : (folders.find((f) => String(f.id) === v)?.id ?? null);
+};
+
+export async function renderDeckEditor(id, folderId = null) {
   const form = $('deck-form');
   const rows = $('deck-cards');
   const error = $('deck-error');
@@ -68,6 +41,8 @@ export async function renderDeckEditor(id) {
   if (id === 'new') {
     editing = null;
     $('deck-heading').textContent = 'Nouvelle leçon';
+    $('deck-back').href = folderHash(folderId);
+    await fillFolderSelect(folderId);
     for (let i = 0; i < 3; i++) addCardRow();
   } else {
     let deck;
@@ -80,6 +55,8 @@ export async function renderDeckEditor(id) {
     }
     editing = { id: deck.id };
     $('deck-heading').textContent = deck.title;
+    $('deck-back').href = folderHash(deck.folderId ?? null);
+    await fillFolderSelect(deck.folderId ?? null);
     $('deck-title').value = deck.title;
     $('deck-description').value = deck.description ?? '';
     for (const card of deck.cards) addCardRow(card);
@@ -190,7 +167,7 @@ function readForm() {
     back: row.querySelector('.back-input').value,
     wrong: cleanWrong([...row.querySelectorAll('.wrong-input')].map((w) => w.value), row.querySelector('.back-input').value.trim()),
   }));
-  return { id: editing?.id, title: $('deck-title').value, description: $('deck-description').value, cards };
+  return { id: editing?.id, title: $('deck-title').value, description: $('deck-description').value, folderId: selectedFolder(), cards };
 }
 
 $('deck-add').addEventListener('click', () => {
@@ -221,7 +198,7 @@ $('deck-form').addEventListener('submit', async (e) => {
   try {
     await store().save({ ...data, cards: valid });
     toast('Leçon enregistrée.');
-    location.hash = '#/memos';
+    location.hash = folderHash(data.folderId);
   } catch (err) {
     error.textContent = errorText(err, 'Enregistrement impossible.');
     error.hidden = false;
@@ -237,7 +214,7 @@ $('deck-delete').addEventListener('click', async (e) => {
   try {
     await store().remove(editing.id);
     toast('Leçon supprimée.');
-    location.hash = '#/memos';
+    location.hash = folderHash(selectedFolder());
   } catch (err) {
     toast(errorText(err, 'Suppression impossible.'));
   } finally {

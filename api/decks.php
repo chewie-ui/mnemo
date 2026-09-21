@@ -13,6 +13,12 @@ function ensureChoicesColumn(): void {
   } catch (PDOException) {
     db()->exec('ALTER TABLE cards ADD COLUMN choices TEXT NULL');
   }
+  // Rangement dans un dossier de la bibliothèque (voir library.php).
+  try {
+    db()->query('SELECT folder_id FROM decks LIMIT 1');
+  } catch (PDOException) {
+    db()->exec('ALTER TABLE decks ADD COLUMN folder_id ' . (str_starts_with(config()['dsn'], 'mysql:') ? 'INT UNSIGNED NULL' : 'INTEGER NULL'));
+  }
 }
 ensureChoicesColumn();
 
@@ -29,7 +35,7 @@ function cleanChoices(mixed $raw, string $back): array {
 }
 
 function ownedDeck(int $uid, int $id): array {
-  $stmt = db()->prepare('SELECT id, title, description, created_at, updated_at FROM decks WHERE id = ? AND user_id = ?');
+  $stmt = db()->prepare('SELECT id, title, description, folder_id, created_at, updated_at FROM decks WHERE id = ? AND user_id = ?');
   $stmt->execute([$id, $uid]);
   $deck = $stmt->fetch();
   if (!$deck) fail(404, 'Leçon introuvable.');
@@ -50,20 +56,21 @@ function deckWithCards(int $uid, int $id): array {
   $stmt->execute([$id]);
   return [
     'id' => (int) $deck['id'], 'title' => $deck['title'], 'description' => $deck['description'],
+    'folderId' => $deck['folder_id'] === null ? null : (int) $deck['folder_id'],
     'updatedAt' => $deck['updated_at'], 'cards' => array_map('cardRow', $stmt->fetchAll()),
   ];
 }
 
 switch (action()) {
   case 'list': {
-    $stmt = db()->prepare('SELECT d.id, d.title, d.description, d.updated_at,
+    $stmt = db()->prepare('SELECT d.id, d.title, d.description, d.folder_id, d.updated_at,
         (SELECT COUNT(*) FROM cards c WHERE c.deck_id = d.id) AS cards,
         (SELECT COUNT(*) FROM cards c WHERE c.deck_id = d.id AND (c.due_at IS NULL OR c.due_at <= ?)) AS due,
         (SELECT COUNT(*) FROM cards c WHERE c.deck_id = d.id AND c.choices IS NOT NULL) AS qcm
       FROM decks d WHERE d.user_id = ? ORDER BY d.updated_at DESC');
     $stmt->execute([gmdate('Y-m-d H:i:s'), $uid]);
     ok(['decks' => array_map(fn($r) => [
-      'id' => (int) $r['id'], 'title' => $r['title'], 'description' => $r['description'],
+      'id' => (int) $r['id'], 'title' => $r['title'], 'description' => $r['description'], 'folderId' => $r['folder_id'] === null ? null : (int) $r['folder_id'],
       'updatedAt' => $r['updated_at'], 'cards' => (int) $r['cards'], 'due' => (int) $r['due'], 'qcm' => (int) $r['qcm'],
     ], $stmt->fetchAll())]);
   }
@@ -81,15 +88,26 @@ switch (action()) {
     $cards = is_array($in['cards'] ?? null) ? $in['cards'] : [];
     if ($title === '') fail(422, 'Donne un titre à la leçon.');
     if (count($cards) > 500) fail(422, '500 cartes maximum par leçon.');
+    $folderId = (int) ($in['folderId'] ?? 0);
+    if ($folderId > 0) {
+      $chk = db()->prepare('SELECT 1 FROM folders WHERE id = ? AND user_id = ?');
+      $chk->execute([$folderId, $uid]);
+      if (!$chk->fetch()) $folderId = 0;
+    }
+    $folder = $folderId > 0 ? $folderId : null;
     $db = db();
     $db->beginTransaction();
     $id = (int) ($in['id'] ?? 0);
     $now = gmdate('Y-m-d H:i:s');
     if ($id) {
       ownedDeck($uid, $id);
-      $db->prepare('UPDATE decks SET title = ?, description = ?, updated_at = ? WHERE id = ?')->execute([$title, $description, $now, $id]);
+      if (array_key_exists('folderId', $in)) {
+        $db->prepare('UPDATE decks SET title = ?, description = ?, folder_id = ?, updated_at = ? WHERE id = ?')->execute([$title, $description, $folder, $now, $id]);
+      } else {
+        $db->prepare('UPDATE decks SET title = ?, description = ?, updated_at = ? WHERE id = ?')->execute([$title, $description, $now, $id]);
+      }
     } else {
-      $db->prepare('INSERT INTO decks (user_id, title, description) VALUES (?, ?, ?)')->execute([$uid, $title, $description]);
+      $db->prepare('INSERT INTO decks (user_id, title, description, folder_id) VALUES (?, ?, ?, ?)')->execute([$uid, $title, $description, $folder]);
       $id = (int) $db->lastInsertId();
     }
     $keep = [];

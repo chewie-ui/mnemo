@@ -93,7 +93,7 @@ const localStore = {
   async list() {
     const now = nowSql();
     return readLocal().map((d) => ({
-      id: d.id, title: d.title, description: d.description, updatedAt: d.updatedAt,
+      id: d.id, title: d.title, description: d.description, folderId: d.folderId ?? null, updatedAt: d.updatedAt,
       cards: d.cards.length, due: d.cards.filter((c) => isDue(c, now)).length, qcm: d.cards.filter((c) => c.wrong?.length).length,
     }));
   },
@@ -111,7 +111,8 @@ const localStore = {
         const prev = existing?.cards.find((p) => p.id === c.id);
         return { id: prev?.id ?? newId(), front: c.front.trim(), back: c.back.trim(), wrong: cleanWrong(c.wrong, c.back.trim()), dueAt: prev?.dueAt ?? null, intervalDays: prev?.intervalDays ?? 0, ease: prev?.ease ?? 2.5, reps: prev?.reps ?? 0 };
       });
-    const deck = { id: existing?.id ?? newId(), title: input.title.trim(), description: (input.description ?? '').trim(), updatedAt: nowSql(), cards };
+    const folderId = input.folderId !== undefined ? input.folderId : (existing?.folderId ?? null);
+    const deck = { id: existing?.id ?? newId(), title: input.title.trim(), description: (input.description ?? '').trim(), folderId, updatedAt: nowSql(), cards };
     const next = existing ? decks.map((d) => (d.id === deck.id ? deck : d)) : [deck, ...decks];
     writeLocal(next);
     return structuredClone(deck);

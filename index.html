@@ -36,7 +36,7 @@
         <a href="#/#geo">Géographie</a>
         <a href="#/#histoire">Histoire</a>
         <a href="#/#pays">Pays en détail</a>
-        <a href="#/memos">Mes mémos</a>
+        <a href="#/memos">Mes cours</a>
         <a href="#/amis">Amis <span id="nav-badge" class="badge nav-badge" data-nav-badge hidden>0</span></a>
       </nav>
       <div class="user-area">
@@ -47,7 +47,7 @@
         </button>
         <div id="user-menu" class="menu" role="menu" hidden>
           <a class="menu-item" role="menuitem" href="#/stats"><i data-lucide="bar-chart-3" aria-hidden="true"></i><span>Mes stats</span></a>
-          <a class="menu-item" role="menuitem" href="#/memos"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Mes mémos</span></a>
+          <a class="menu-item" role="menuitem" href="#/memos"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Mes cours</span></a>
           <a class="menu-item" role="menuitem" href="#/amis"><i data-lucide="users" aria-hidden="true"></i><span>Amis et défis</span></a>
           <a class="menu-item" role="menuitem" href="#/reglages"><i data-lucide="settings" aria-hidden="true"></i><span>Réglages</span></a>
           <button id="logout-btn" class="menu-item" role="menuitem" type="button"><i data-lucide="log-out" aria-hidden="true"></i><span>Se déconnecter</span></button>
@@ -64,7 +64,7 @@
         <div class="hero-actions">
           <a class="btn btn-primary" href="#/campagne"><i data-lucide="play" aria-hidden="true"></i><span>Commencer la campagne</span></a>
           <a class="btn btn-ghost" href="#/#geo"><i data-lucide="globe" aria-hidden="true"></i><span>Jouer une carte libre</span></a>
-          <a class="btn btn-ghost" href="#/memos"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Créer une leçon</span></a>
+          <a class="btn btn-ghost" href="#/memos"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Mes cours</span></a>
         </div>
       </section>
 
@@ -154,26 +154,64 @@
     <!-- Mes mémos : liste des leçons -->
     <main id="screen-memos" class="screen container page" hidden>
       <div class="page-head">
-        <a class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
-        <h1>Mes mémos</h1>
-        <a class="btn btn-primary page-action" href="#/memos/new"><i data-lucide="plus" aria-hidden="true"></i><span>Nouvelle leçon</span></a>
+        <a id="memos-back" class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1 id="memos-title">Mes cours</h1>
+      </div>
+      <nav id="memos-crumbs" class="crumbs" aria-label="Chemin"></nav>
+      <div class="library-actions">
+        <button id="lib-new-folder" class="btn btn-ghost" type="button"><i data-lucide="folder-plus" aria-hidden="true"></i><span>Dossier</span></button>
+        <a id="lib-new-deck" class="btn btn-primary" href="#/memos/new"><i data-lucide="plus" aria-hidden="true"></i><span>Leçon</span></a>
+        <a id="lib-new-note" class="btn btn-ghost" href="#/notes/new"><i data-lucide="file-plus-2" aria-hidden="true"></i><span>Note</span></a>
       </div>
       <p id="memos-note" class="note" hidden></p>
-      <div id="memos-list" class="region-grid" role="list"></div>
-      <div id="memos-empty" class="empty-state" hidden>
-        <h2>Aucune leçon pour l'instant</h2>
-        <p>Une leçon, c'est une liste de cartes question → réponse : une définition, une date, un article de loi, un mot de vocabulaire… Tu la révises ensuite au bon moment.</p>
-        <div class="hero-actions">
-          <a class="btn btn-primary" href="#/memos/new"><i data-lucide="plus" aria-hidden="true"></i><span>Créer ma première leçon</span></a>
-          <button id="memos-sample" class="btn btn-ghost" type="button">Ajouter une leçon d'exemple</button>
-        </div>
+      <div id="library-body"></div>
+    </main>
+
+    <!-- Lecture d'une note de cours -->
+    <main id="screen-note" class="screen container page" hidden>
+      <div class="page-head">
+        <a id="note-back" class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Mes cours</span></a>
+        <h1 id="note-title">Note</h1>
+        <a id="note-edit" class="btn btn-ghost page-action" href="#/memos"><i data-lucide="pencil" aria-hidden="true"></i><span>Modifier</span></a>
       </div>
+      <p id="note-meta" class="muted small"></p>
+      <article id="note-body" class="note-article"></article>
+    </main>
+
+    <!-- Édition d'une note de cours -->
+    <main id="screen-note-edit" class="screen container page" hidden>
+      <div class="page-head">
+        <a id="note-editor-back" class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Retour</span></a>
+        <h1 id="note-editor-heading">Nouvelle note</h1>
+      </div>
+      <form id="note-form" class="deck-form" novalidate>
+        <div class="password-grid">
+          <div class="field">
+            <label for="note-title-input">Titre</label>
+            <input id="note-title-input" type="text" maxlength="160" placeholder="Chapitre 2 — Le mix marketing" required />
+          </div>
+          <div class="field">
+            <label for="note-folder">Dossier</label>
+            <select id="note-folder"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="note-text">Contenu</label>
+          <textarea id="note-text" class="note-textarea" rows="12" placeholder="Écris ton cours ici…&#10;&#10;# Un titre&#10;- une liste&#10;**important**, *nuance*, ==à retenir=="></textarea>
+          <p class="note small">Mise en forme : <code># Titre</code>, <code>## Sous-titre</code>, <code>- liste</code>, <code>1. liste numérotée</code>, <code>**gras**</code>, <code>*italique*</code>, <code>==surligné==</code>, <code>&gt; citation</code>, <code>---</code> pour une ligne.</p>
+        </div>
+        <p id="note-error" class="form-error" role="alert" hidden></p>
+        <div class="deck-footer">
+          <button id="note-save" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Enregistrer</span></button>
+          <button id="note-delete" class="btn btn-ghost btn-danger" type="button" hidden><i data-lucide="trash-2" aria-hidden="true"></i><span>Supprimer la note</span></button>
+        </div>
+      </form>
     </main>
 
     <!-- Éditeur de leçon -->
     <main id="screen-deck" class="screen container page" hidden>
       <div class="page-head">
-        <a class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Mes mémos</span></a>
+        <a id="deck-back" class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Mes cours</span></a>
         <h1 id="deck-heading">Nouvelle leçon</h1>
       </div>
       <form id="deck-form" class="deck-form" novalidate>
@@ -181,9 +219,15 @@
           <label for="deck-title">Titre</label>
           <input id="deck-title" type="text" maxlength="120" required placeholder="Droit civil — définitions" />
         </div>
-        <div class="field">
-          <label for="deck-description">Description <span class="muted">(facultatif)</span></label>
-          <input id="deck-description" type="text" maxlength="500" placeholder="Chapitre 3, à savoir pour le partiel" />
+        <div class="password-grid">
+          <div class="field">
+            <label for="deck-description">Description <span class="muted">(facultatif)</span></label>
+            <input id="deck-description" type="text" maxlength="500" placeholder="Chapitre 3, à savoir pour le partiel" />
+          </div>
+          <div class="field">
+            <label for="deck-folder">Dossier</label>
+            <select id="deck-folder"></select>
+          </div>
         </div>
         <h2 class="cards-title">Cartes <span id="deck-count" class="muted"></span></h2>
         <p class="note">À gauche la question (ou le terme), à droite la réponse (ou la définition). Les cartes vides sont ignorées. Pour un vrai QCM, ajoute des mauvaises réponses à une carte.</p>
@@ -468,6 +512,34 @@
     </div>
 
     <!-- Connexion / inscription -->
+    <div id="name-modal" class="modal-backdrop" hidden>
+      <form id="name-modal-form" class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="name-modal-title" novalidate>
+        <h2 id="name-modal-title">Nouveau dossier</h2>
+        <div class="field">
+          <label for="name-modal-input">Nom</label>
+          <input id="name-modal-input" type="text" maxlength="120" placeholder="Bac 1 marketing" required />
+        </div>
+        <div class="hero-actions">
+          <button id="name-modal-submit" class="btn btn-primary" type="submit"><span>Créer</span></button>
+          <button id="name-modal-cancel" class="btn btn-ghost" type="button"><span>Annuler</span></button>
+        </div>
+      </form>
+    </div>
+
+    <div id="move-modal" class="modal-backdrop" hidden>
+      <form id="move-modal-form" class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="move-modal-title" novalidate>
+        <h2 id="move-modal-title">Déplacer vers</h2>
+        <div class="field">
+          <label for="move-modal-select">Dossier de destination</label>
+          <select id="move-modal-select"></select>
+        </div>
+        <div class="hero-actions">
+          <button class="btn btn-primary" type="submit"><span>Déplacer</span></button>
+          <button id="move-modal-cancel" class="btn btn-ghost" type="button"><span>Annuler</span></button>
+        </div>
+      </form>
+    </div>
+
     <div id="auth-modal" class="modal-backdrop" hidden>
       <section class="modal modal-auth" role="dialog" aria-modal="true" aria-labelledby="auth-title">
         <div class="modal-head">
@@ -506,7 +578,7 @@
     <nav id="tabbar" class="tabbar" aria-label="Navigation principale">
       <a href="#/" data-tab="home"><i data-lucide="house" aria-hidden="true"></i><span>Accueil</span></a>
       <a href="#/campagne" data-tab="campaign"><i data-lucide="flag" aria-hidden="true"></i><span>Campagne</span></a>
-      <a href="#/memos" data-tab="memos"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Mémos</span></a>
+      <a href="#/memos" data-tab="memos"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Cours</span></a>
       <a href="#/amis" data-tab="friends"><i data-lucide="users" aria-hidden="true"></i><span>Amis</span><span class="badge nav-badge" data-nav-badge hidden>0</span></a>
       <a href="#/reglages" data-tab="settings"><i data-lucide="settings" aria-hidden="true"></i><span>Réglages</span></a>
     </nav>

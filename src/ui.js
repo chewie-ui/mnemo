@@ -2,13 +2,13 @@
 import {
   createIcons, Globe, ArrowLeft, Plus, Minus, Maximize, RotateCcw, Trophy, Map, MapPin, Building2, Waves, Sailboat,
   Landmark, Flag, MapPinned, Search, CircleUserRound, BarChart3, NotebookPen, LogOut, Play, X, Check, Trash2, Pencil,
-  BookOpen, ListChecks, Clock, Eye, Languages, Coins, Castle, ChevronDown, ChevronUp, Users, Swords, UserPlus, Star, Award, Lock, ArrowRight, Settings, Monitor, Sun, Moon, Mail, LayoutGrid, House,
+  BookOpen, ListChecks, Clock, Eye, Languages, Coins, Castle, ChevronDown, ChevronUp, Users, Swords, UserPlus, Star, Award, Lock, ArrowRight, Settings, Monitor, Sun, Moon, Mail, LayoutGrid, House, Folder, FolderPlus, FolderOpen, FolderInput, FilePlus2, FileText, Ellipsis, ChevronRight, BookOpenText,
   Cat, Dog, Bird, Fish, Rabbit, Squirrel, Turtle, Snail, Bug, Ghost, Bot, Skull, Rocket, Crown, Heart, Zap, Flame, Leaf, Mountain, Anchor, Compass, Sword, Shield, Gamepad2, Palette, Music, Pizza, Dices,
 } from 'lucide';
 
 const icons = {
   Globe, ArrowLeft, Plus, Minus, Maximize, RotateCcw, Trophy, Map, MapPin, Building2, Waves, Sailboat, Landmark, Flag,
-  MapPinned, Search, CircleUserRound, BarChart3, NotebookPen, LogOut, Play, X, Check, Trash2, Pencil, BookOpen, ListChecks, Clock, Eye, Languages, Coins, Castle, ChevronDown, ChevronUp, Users, Swords, UserPlus, Star, Award, Lock, ArrowRight, Settings, Monitor, Sun, Moon, Mail, LayoutGrid, House,
+  MapPinned, Search, CircleUserRound, BarChart3, NotebookPen, LogOut, Play, X, Check, Trash2, Pencil, BookOpen, ListChecks, Clock, Eye, Languages, Coins, Castle, ChevronDown, ChevronUp, Users, Swords, UserPlus, Star, Award, Lock, ArrowRight, Settings, Monitor, Sun, Moon, Mail, LayoutGrid, House, Folder, FolderPlus, FolderOpen, FolderInput, FilePlus2, FileText, Ellipsis, ChevronRight, BookOpenText,
   Cat, Dog, Bird, Fish, Rabbit, Squirrel, Turtle, Snail, Bug, Ghost, Bot, Skull, Rocket, Crown, Heart, Zap, Flame, Leaf, Mountain, Anchor, Compass, Sword, Shield, Gamepad2, Palette, Music, Pizza, Dices,
 };
 
@@ -44,7 +44,7 @@ export function setLoading(btn, loading) {
 
 // Affiche un écran (<main id="screen-…">) et cache les autres.
 // Onglet du bas correspondant à chaque écran (mobile). Les écrans sans onglet gardent l'onglet parent.
-const TAB_OF = { home: 'home', campaign: 'campaign', memos: 'memos', deck: 'memos', study: 'memos', friends: 'friends', duel: 'friends', settings: 'settings', stats: 'settings', reset: 'settings', confirm: 'settings' };
+const TAB_OF = { home: 'home', campaign: 'campaign', memos: 'memos', deck: 'memos', study: 'memos', note: 'memos', 'note-edit': 'memos', friends: 'friends', duel: 'friends', settings: 'settings', stats: 'settings', reset: 'settings', confirm: 'settings' };
 
 export function showScreen(name) {
   for (const el of document.querySelectorAll('main.screen')) el.hidden = el.id !== `screen-${name}`;
