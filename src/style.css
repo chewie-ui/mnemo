@@ -777,23 +777,80 @@ p {
   outline-offset: 2px;
 }
 
+/* Tuile jouee : drapeau estompe et grise, grosse coche coloree selon le nombre d'essais. */
+.flag-tile {
+  position: relative;
+}
+
+.tile-mark {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.tile-mark .lucide {
+  width: 34px;
+  height: 34px;
+  padding: 5px;
+  border-radius: 50%;
+  color: #ffffff;
+  background: var(--mark-bg, var(--state-correct-1));
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+  stroke-width: 3;
+}
+
+.tile-mark .mark-ko {
+  display: none;
+}
+
+.flag-tile[data-state^='correct'],
+.flag-tile[data-state='failed'] {
+  cursor: default;
+}
+
+.flag-tile[data-state^='correct'] img,
+.flag-tile[data-state='failed'] img {
+  filter: grayscale(0.85);
+  opacity: 0.35;
+}
+
+.flag-tile[data-state^='correct'] .tile-mark,
+.flag-tile[data-state='failed'] .tile-mark {
+  display: flex;
+}
+
+.flag-tile[data-state='failed'] .mark-ok {
+  display: none;
+}
+
+.flag-tile[data-state='failed'] .mark-ko {
+  display: block;
+}
+
 .flag-tile[data-state='correct-1'] {
+  --mark-bg: var(--state-correct-1);
   border-color: var(--state-correct-1);
   background: color-mix(in srgb, var(--state-correct-1) 22%, var(--surface));
 }
 
 .flag-tile[data-state='correct-2'] {
+  --mark-bg: var(--state-correct-2);
   border-color: var(--state-correct-2);
   background: color-mix(in srgb, var(--state-correct-2) 22%, var(--surface));
 }
 
 .flag-tile[data-state='correct-3'] {
+  --mark-bg: #c9922a;
   border-color: var(--state-correct-3);
   background: color-mix(in srgb, var(--state-correct-3) 30%, var(--surface));
 }
 
 .flag-tile[data-state='failed'],
 .flag-tile.flash {
+  --mark-bg: var(--state-failed);
   border-color: var(--state-failed);
   background: color-mix(in srgb, var(--state-failed) 22%, var(--surface));
 }

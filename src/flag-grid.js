@@ -2,7 +2,7 @@
 // Même interface que GameMap (render, onSelect, setState, flash, labelOf, setSelected, nodes)
 // pour que play.js n'ait pas à savoir s'il parle à une carte ou à une grille.
 import { shuffle } from './game.js';
-import { flagUrl } from './ui.js';
+import { flagUrl, refreshIcons } from './ui.js';
 
 export class FlagGrid {
   /**
@@ -39,10 +39,16 @@ export class FlagGrid {
       img.alt = '';
       img.loading = 'lazy';
       img.draggable = false;
-      tile.append(img);
+      // Coche (ou croix) qui apparait une fois la tuile jouee : le drapeau, lui, s'estompe.
+      const mark = document.createElement('span');
+      mark.className = 'tile-mark';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.innerHTML = '<i data-lucide="check" class="mark-ok"></i><i data-lucide="x" class="mark-ko"></i>';
+      tile.append(img, mark);
       this.nodes.set(t.id, [tile]);
       this.root.append(tile);
     });
+    refreshIcons();
     this.root.scrollTop = 0;
   }
 
