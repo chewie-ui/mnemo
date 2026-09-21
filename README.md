@@ -24,8 +24,10 @@ Sans l'API, le site fonctionne quand même : comptes désactivés, scores et mé
 
 - **Compte facultatif** (icône en haut à droite) : e-mail + mot de passe, session par cookie. Sans compte, meilleurs scores et leçons restent dans le navigateur (localStorage).
 - **Stats** (`#/stats`) : chaque partie terminée est enregistrée pour un utilisateur connecté (carte, mode, score, temps, erreurs).
-- **Campagne** (`#/campagne`) : 7 chapitres, 65 niveaux courts du plus simple au plus complet (`src/data/campaign.js`), étoiles (70 % / 90 % / sans faute), déblocage progressif, trophées par étoile et badge par chapitre ; progression locale + serveur (`api/campaign.php`).
+- **Campagne** (`#/campagne`) : 7 chapitres, 81 niveaux courts du plus simple au plus complet (`src/data/campaign.js`), étoiles (70 % / 90 % / sans faute), déblocage progressif, trophées par étoile et badge par chapitre ; progression locale + serveur (`api/campaign.php`).
 - **Amis et défis** (`#/amis`) : ajout d'amis par pseudo, défis sur n'importe quelle carte : le lanceur attend dans une salle d'attente, l'ami reçoit une notification (bandeau + badge, relevé toutes les 10 s), accepte, et les deux passent par un écran VS avec compte à rebours avant la même partie (même ordre de questions grâce à une graine partagée, progression de l'adversaire relue toutes les 3 s, meilleur score puis meilleur temps). Classement par trophées (`api/friends.php`, `api/duels.php`, `src/duel-ui.js`).
+- **Mes cours** (`#/memos`) : bibliothèque personnelle avec dossiers imbriqués (une matière, un chapitre…), **leçons** (cartes question → réponse, révision espacée SM-2 simplifiée dans `src/memos.js`, quiz QCM avec mauvaises réponses par carte) et **notes de cours** (texte avec titres, listes, gras, surligné, citations — `src/library.js`). Sans compte tout reste dans le navigateur ; avec un compte tout est synchronisé (`api/library.php`, `api/decks.php`).
+- **Application mobile** : le site est installable (« Ajouter à l’écran d’accueil », manifeste + icônes générées par `node scripts/icons.mjs`), sans zoom, avec une barre d’onglets en bas sur téléphone.
 
 ## Déployer sur Infomaniak (PHP + MySQL)
 
