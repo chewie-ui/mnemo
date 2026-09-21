@@ -27,6 +27,10 @@ export const CHAPTERS = [
       level('eu-13', 'Tous les drapeaux', 'europe', 'flags', null, { boss: true }),
       level('eu-14', 'Grands fleuves', 'europe', 'rivers', null, { targets: ['river:danube', 'river:rhin', 'river:seine', 'river:loire', 'river:rhone', 'river:volga', 'river:dniepr', 'river:elbe', 'river:tage', 'river:po'] }),
       level('eu-15', 'Mers d’Europe', 'europe', 'seas', null, { targets: ['sea:mer-mediterranee', 'sea:mer-du-nord', 'sea:mer-baltique', 'sea:mer-noire', 'sea:manche', 'sea:mer-adriatique', 'sea:mer-egee', 'sea:golfe-de-gascogne', 'sea:mer-de-norvege', 'sea:mer-d-irlande'] }),
+      level('eu-16', 'Quel drapeau ? L’Ouest', 'europe', 'flagpick', ['250', '724', '620', '380', '276', '056', '528', '442', '756', '040', '826', '372']),
+      level('eu-17', 'Quel drapeau ? Le Nord et l’Est', 'europe', 'flagpick', ['208', '578', '752', '246', '352', '233', '428', '440', '616', '203', '703', '348', '643', '804', '112', '498', '642', '100']),
+      level('eu-18', 'Quel drapeau ? Les Balkans et les micro-États', 'europe', 'flagpick', ['191', '070', '688', '499', 'kosovo', '807', '008', '300', '020', '492', '674', '336', '438', '470', '196']),
+      level('eu-19', 'Quel drapeau ? Toute l’Europe', 'europe', 'flagpick', null, { boss: true }),
     ],
   },
   {
@@ -47,6 +51,9 @@ export const CHAPTERS = [
       level('am-10', 'Les 50 États', 'usa', 'countries', null, { boss: true }),
       level('am-11', 'Capitales des Amériques', 'north-america', 'capitals', ['124', '840', '484', '192', '320', '188', '591', '388', '332', '214']),
       level('am-12', 'Capitales d’Amérique du Sud', 'south-america', 'capitals', null, { boss: true }),
+      level('am-13', 'Quel drapeau ? Amérique du Nord et centrale', 'north-america', 'flagpick', ['124', '840', '484', '320', '084', '340', '222', '558', '188', '591', '192', '332', '214', '388', '044']),
+      level('am-14', 'Quel drapeau ? Amérique du Sud', 'south-america', 'flagpick', null),
+      level('am-15', 'Quel drapeau ? Toute l’Amérique du Nord', 'north-america', 'flagpick', null, { boss: true }),
     ],
   },
   {
@@ -66,6 +73,9 @@ export const CHAPTERS = [
       level('as-9', 'Capitales du Moyen-Orient et du Sud', 'asia', 'capitals', ['792', '760', '422', '376', '400', '368', '364', '682', '784', '356', '586', '050', '524', '004']),
       level('as-10', 'Toutes les capitales', 'asia', 'capitals', null, { boss: true }),
       level('as-11', 'Drapeaux d’Asie', 'asia', 'flags', null, { boss: true }),
+      level('as-12', 'Quel drapeau ? Les géants et l’Extrême-Orient', 'asia', 'flagpick', ['156', '356', '392', '360', '682', '364', '792', '410', '408', '158', '496', '704', '764', '458', '702', '608']),
+      level('as-13', 'Quel drapeau ? Moyen-Orient et Asie centrale', 'asia', 'flagpick', ['760', '422', '376', '400', '368', '414', '048', '634', '784', '512', '887', '398', '860', '795', '417', '762', '004', '268', '051', '031']),
+      level('as-14', 'Quel drapeau ? Toute l’Asie', 'asia', 'flagpick', null, { boss: true }),
     ],
   },
   {
@@ -83,6 +93,9 @@ export const CHAPTERS = [
       level('af-7', 'Capitales du Nord et de l’Ouest', 'africa', 'capitals', ['504', '012', '788', '434', '818', '686', '384', '288', '566', '466', '562', '854', '324']),
       level('af-8', 'Toutes les capitales', 'africa', 'capitals', null, { boss: true }),
       level('af-9', 'Drapeaux d’Afrique', 'africa', 'flags', null, { boss: true }),
+      level('af-10', 'Quel drapeau ? Le Nord et l’Ouest', 'africa', 'flagpick', ['504', '012', '788', '434', '818', '729', '478', '686', '384', '288', '566', '466', '562', '854', '324', '204', '768']),
+      level('af-11', 'Quel drapeau ? Le Centre, l’Est et le Sud', 'africa', 'flagpick', ['120', '148', '266', '178', '180', '024', '231', '232', '706', '404', '800', '834', '646', '710', '516', '072', '716', '894', '508', '450']),
+      level('af-12', 'Quel drapeau ? Toute l’Afrique', 'africa', 'flagpick', null, { boss: true }),
     ],
   },
   {
@@ -94,6 +107,7 @@ export const CHAPTERS = [
       level('oc-1', 'Les grands', 'oceania', 'countries', ['036', '554', '598']),
       level('oc-2', 'Toute l’Océanie', 'oceania', 'countries', null, { boss: true }),
       level('oc-3', 'Capitales d’Océanie', 'oceania', 'capitals', null),
+      level('oc-4', 'Quel drapeau ? Océanie', 'oceania', 'flagpick', null, { boss: true }),
     ],
   },
   {
@@ -110,6 +124,8 @@ export const CHAPTERS = [
       level('wo-6', 'Les monnaies', 'world', 'currencies', null, { targets: ['cur:euro', 'cur:dollar-americain', 'cur:yen', 'cur:livre-sterling', 'cur:franc-suisse', 'cur:yuan', 'cur:roupie-indienne', 'cur:real', 'cur:franc-cfa', 'cur:rouble-russe', 'cur:dollar-canadien', 'cur:dollar-australien'] }),
       level('wo-7', 'Tous les pays du monde', 'world', 'countries', null, { boss: true }),
       level('wo-8', 'Tous les drapeaux', 'world', 'flags', null, { boss: true }),
+      level('wo-9', 'Quel drapeau ? Les 30 incontournables', 'world', 'flagpick', ['840', '124', '484', '076', '032', '826', '250', '276', '380', '724', '643', '792', '818', '566', '710', '404', '156', '392', '356', '360', '682', '364', '036', '554', '410', '764', '704', '586', '180', '170']),
+      level('wo-10', 'Quel drapeau ? Le monde entier', 'world', 'flagpick', null, { boss: true }),
     ],
   },
   {

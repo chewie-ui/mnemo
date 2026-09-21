@@ -46,7 +46,9 @@ export const levelProgress = (id) => progress[id] ?? null;
 export function isUnlocked(level) {
   if (level.number === 1) return true;
   const prev = LEVELS.find((l) => l.chapter === level.chapter && l.number === level.number - 1);
-  return (progress[prev.id]?.stars ?? 0) > 0;
+  if ((progress[prev.id]?.stars ?? 0) > 0) return true;
+  // Niveau déjà réussi, ou un niveau plus loin dans le chapitre l'est : on ne referme pas la porte.
+  return LEVELS.some((l) => l.chapter === level.chapter && l.number >= level.number && (progress[l.id]?.stars ?? 0) > 0);
 }
 
 export function chapterStats(chapter) {
