@@ -14,7 +14,10 @@ set_exception_handler(function (Throwable $e): void {
   if (!headers_sent()) {
     header('Content-Type: application/json; charset=utf-8', true, 500);
   }
-  echo json_encode(['error' => 'Erreur interne du serveur. Regarde les journaux PHP de l’hébergement.'], JSON_UNESCAPED_UNICODE);
+  $out = ['error' => 'Erreur interne du serveur. Regarde les journaux PHP de l’hébergement.'];
+  // Avec APP_DEBUG=1 dans le .env : le détail technique, pour diagnostiquer sans accès aux journaux.
+  if (config()['debug'] ?? false) $out['detail'] = $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine();
+  echo json_encode($out, JSON_UNESCAPED_UNICODE);
   exit;
 });
 
