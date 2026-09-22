@@ -232,10 +232,36 @@ p {
   height: var(--topbar-h);
 }
 
+/* Écrans intermédiaires (tablette, fenêtre étroite) : la barre reste sur une seule ligne. */
+@media (max-width: 1100px) {
+  .topbar-inner {
+    gap: 16px;
+  }
+
+  .topnav a {
+    padding: 8px;
+    font-size: 15px;
+  }
+}
+
+/* Entre 768 et 900 px, la navigation est encore affichée : on gagne de la place sur le logo.
+   En dessous, la navigation passe en bas et le nom du site reprend sa place. */
+@media (min-width: 768px) and (max-width: 900px) {
+  .brand span {
+    display: none;
+  }
+
+  .topnav a {
+    padding: 6px;
+    font-size: 14px;
+  }
+}
+
 .brand {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
   font-weight: 700;
   font-size: 20px;
   color: var(--text);
@@ -1427,7 +1453,13 @@ p {
 .topnav {
   display: flex;
   gap: 4px;
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.topnav a {
+  white-space: nowrap;
 }
 
 .topnav a {
@@ -1449,20 +1481,39 @@ p {
   outline-offset: 2px;
 }
 
+/* Réglages + compte : même hauteur, alignés au centre, un seul espacement. */
 .user-area {
   position: relative;
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .user-btn {
-  min-height: 40px;
-  padding: 0 12px;
+  height: 40px;
+  min-height: 0;
+  padding: 0 12px 0 8px;
+  gap: 8px;
+  max-width: 200px;
+}
+
+.user-btn #user-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-btn .avatar,
+.user-btn .lucide {
+  flex-shrink: 0;
 }
 
 .settings-btn {
   width: 40px;
-  min-height: 40px;
-  margin-right: 4px;
+  height: 40px;
+  min-height: 0;
+  flex-shrink: 0;
 }
 
 /* ─── Réglages ─── */
@@ -2262,6 +2313,12 @@ p {
     display: none;
   }
 
+  .user-btn {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
   .theme-picker {
     grid-template-columns: 1fr;
   }
@@ -2545,6 +2602,17 @@ p {
   width: 24px;
   height: 24px;
   font-size: 12px;
+}
+
+.user-btn .avatar-sm {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+}
+
+.user-btn .avatar-sm .lucide {
+  width: 16px;
+  height: 16px;
 }
 
 .avatar-sm .lucide {
