@@ -511,9 +511,11 @@ async function renderSummary() {
       ${rankBlock}
       <div class="hero-actions" style="justify-content:center">
         <a class="btn btn-primary" href="${s.deck.mine === false ? '#/memos' : folderHash(s.deck.folderId ?? null)}"><span>Mes cours</span></a>
-        <a class="btn btn-ghost" href="#/${s.kind === 'quiz' ? 'quiz' : 'study'}/${s.deck.id}"><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Recommencer</span></a>
+        <button id="study-again" class="btn btn-ghost" type="button"><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Recommencer</span></button>
       </div>
     </div>`;
+  // Un lien vers la même adresse ne relancerait rien (le hash ne change pas) : on relance nous-mêmes.
+  $('study-again').addEventListener('click', () => renderStudy(s.deck.id, s.kind));
   refreshIcons();
 }
 
