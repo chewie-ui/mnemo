@@ -59,9 +59,10 @@ git('worktree remove .deploy --force');
 if (existsSync(work)) rmSync(work, { recursive: true, force: true });
 
 console.log(`
-Sur le serveur, une seule commande met le site a jour :
+Sur le serveur (depot clone une fois avec : git clone --bare -b deploy <url> ~/sources/mnemo-deploy.git) :
 
-  git --git-dir=$HOME/sources/mnemo-deploy/.git --work-tree=$HOME/sites/<domaine> fetch origin deploy
-  git --git-dir=$HOME/sources/mnemo-deploy/.git --work-tree=$HOME/sites/<domaine> checkout -f deploy
+  G=$HOME/sources/mnemo-deploy.git; W=$HOME/sites/<domaine>
+  git --git-dir=$G --work-tree=$W fetch origin deploy:deploy
+  git --git-dir=$G --work-tree=$W reset --hard deploy
 
-(le fichier api/.env du serveur n'est pas suivi par git : il n'est jamais efface)`);
+(reset --hard remet aussi les fichiers effaces ; api/.env, non suivi, n'est jamais touche)`);

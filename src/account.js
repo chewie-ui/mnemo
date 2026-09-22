@@ -76,9 +76,19 @@ function setMode(which) {
   ui.success.hidden = true;
 }
 
-function showError(message) {
+// Le message doit sauter aux yeux : on le montre, on place le curseur dans le champ fautif
+// et on le fait lire aux lecteurs d'écran.
+function showError(message, field = null) {
   ui.error.textContent = message;
   ui.error.hidden = false;
+  ui.error.scrollIntoView({ block: 'nearest' });
+  const target = field ?? (/mot de passe/i.test(message) ? ui.password : /pseudo/i.test(message) ? ui.name : /adresse/i.test(message) || /e-mail/i.test(message) ? ui.email : null);
+  if (target && !target.closest('[hidden]')) {
+    target.focus();
+    target.select?.();
+    target.classList.add('is-invalid');
+    target.addEventListener('input', () => target.classList.remove('is-invalid'), { once: true });
+  }
 }
 
 async function submit(e) {

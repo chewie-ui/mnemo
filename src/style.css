@@ -3776,3 +3776,9 @@ p {
     width: 100%;
   }
 }
+
+/* Champ refusé par le serveur ou la validation : contour rouge le temps d'une correction. */
+.field input.is-invalid {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
