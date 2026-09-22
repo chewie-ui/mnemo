@@ -62,7 +62,8 @@ console.log(`
 Sur le serveur (depot clone une fois avec : git clone --bare -b deploy <url> ~/sources/mnemo-deploy.git) :
 
   G=$HOME/sources/mnemo-deploy.git; W=$HOME/sites/<domaine>
-  git --git-dir=$G --work-tree=$W fetch origin deploy:deploy
-  git --git-dir=$G --work-tree=$W reset --hard deploy
+  git --git-dir=$G --work-tree=$W fetch origin deploy
+  git --git-dir=$G --work-tree=$W reset --hard FETCH_HEAD
 
-(reset --hard remet aussi les fichiers effaces ; api/.env, non suivi, n'est jamais touche)`);
+(FETCH_HEAD : fonctionne aussi bien sur un depot bare que sur un clone normal.
+ reset --hard remet les fichiers effaces ; api/.env, non suivi, n'est jamais touche)`);
