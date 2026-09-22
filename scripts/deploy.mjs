@@ -30,8 +30,14 @@ try {
 } catch {
   console.log('Premiere publication : la branche `deploy` va etre creee.');
 }
-gitLoud(`worktree add -B deploy .deploy ${hasRemote ? 'origin/deploy' : '--detach'}`);
-if (!hasRemote) gitLoud('checkout --orphan deploy', work);
+if (hasRemote) {
+  gitLoud('worktree add -B deploy .deploy origin/deploy');
+} else {
+  // Premiere fois : un worktree detache, puis une branche orpheline (sans historique des sources).
+  gitLoud('worktree add --detach .deploy');
+  gitLoud('checkout --orphan deploy', work);
+  git('rm -rf --cached . || true', work);
+}
 
 // On remplace tout le contenu par le dist fraichement construit.
 for (const name of readdirSync(work)) {
