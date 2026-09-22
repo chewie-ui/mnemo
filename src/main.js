@@ -9,6 +9,7 @@ import { startGame, stopSession } from './play.js';
 import { renderStats } from './stats.js';
 import { renderDeckEditor, renderStudy } from './memos-ui.js';
 import { renderLibrary, renderNote, renderNoteEditor, initLibrary } from './library-ui.js';
+import { renderAiScreen, initAi } from './ai-ui.js';
 import { renderFriends, initFriends } from './friends.js';
 import { openDuel, stopDuelWatch, startInboxWatch, stopInboxWatch } from './duel-ui.js';
 import { renderCampaign, levelById, isUnlocked, loadProgress } from './campaign.js';
@@ -63,6 +64,9 @@ function route() {
   } else if ((m = hash.match(/^#\/memos\/f\/([\w-]+)$/))) {
     showScreen('memos');
     renderLibrary(m[1]);
+  } else if ((m = hash.match(/^#\/memos\/ai(?:\/([\w-]+))?$/))) {
+    showScreen('ai');
+    renderAiScreen(m[1] ?? null);
   } else if ((m = hash.match(/^#\/memos\/new(?:\/([\w-]+))?$/))) {
     showScreen('deck');
     renderDeckEditor('new', m[1] ?? null);
@@ -126,6 +130,7 @@ async function boot() {
   initSettings();
   initFriends();
   initLibrary();
+  initAi();
   window.addEventListener('hashchange', route);
   // Les pages qui lisent une leçon attendent de savoir qui est connecté (stockage local ou serveur).
   if (!/^#\/(memos|notes|study|quiz|confirm-email)(\/|$)/.test(location.hash)) route();

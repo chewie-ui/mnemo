@@ -53,6 +53,8 @@ export async function renderLibrary(folderId = null) {
     : '';
   $('lib-new-deck').href = folderId == null ? '#/memos/new' : `#/memos/new/${folderId}`;
   $('lib-new-note').href = folderId == null ? '#/notes/new' : `#/notes/new/${folderId}`;
+  $('lib-new-ai').href = folderId == null ? '#/memos/ai' : `#/memos/ai/${folderId}`;
+  $('lib-new-ai').hidden = !currentUser();
 
   const folders = tree.folders.filter((f) => same(f.parentId, folderId)).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
   const decks = tree.decks.filter((d) => same(d.folderId, folderId));

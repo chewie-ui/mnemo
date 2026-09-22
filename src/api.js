@@ -34,7 +34,7 @@ export async function api(endpoint, action, { method = 'GET', body, query = {} }
     /* réponse vide ou non JSON */
   }
   // 502/503/504 : le relais fonctionne mais pas le serveur PHP derrière (en local : npm run dev lance les deux).
-  if (res.status >= 502 && res.status <= 504) throw new ApiError(res.status, 'Le serveur ne répond pas pour le moment. Réessaie dans un instant.');
+  if (res.status >= 502 && res.status <= 504 && !data.error) throw new ApiError(res.status, 'Le serveur ne répond pas pour le moment. Réessaie dans un instant.');
   if (!res.ok) throw new ApiError(res.status, data.error ?? `Erreur ${res.status}`);
   return data;
 }

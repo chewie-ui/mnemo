@@ -167,9 +167,69 @@
         <button id="lib-new-folder" class="btn btn-ghost" type="button"><i data-lucide="folder-plus" aria-hidden="true"></i><span>Dossier</span></button>
         <a id="lib-new-deck" class="btn btn-primary" href="#/memos/new"><i data-lucide="plus" aria-hidden="true"></i><span>Leçon</span></a>
         <a id="lib-new-note" class="btn btn-ghost" href="#/notes/new"><i data-lucide="file-plus-2" aria-hidden="true"></i><span>Note</span></a>
+        <a id="lib-new-ai" class="btn btn-ghost btn-ai" href="#/memos/ai"><i data-lucide="sparkles" aria-hidden="true"></i><span>Leçon avec l’IA</span></a>
       </div>
       <p id="memos-note" class="note" hidden></p>
       <div id="library-body"></div>
+    </main>
+
+    <!-- Génération d'une leçon par l'IA -->
+    <main id="screen-ai" class="screen container page" hidden>
+      <div class="page-head">
+        <a id="ai-back" class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Mes cours</span></a>
+        <h1>Leçon avec l’IA</h1>
+      </div>
+      <p id="ai-unavailable" class="note" hidden></p>
+      <form id="ai-form" class="deck-form" novalidate>
+        <p class="note">Colle ta synthèse ou joins ton cours (PowerPoint, Word, PDF, texte) : l’IA en tire des questions avec la bonne réponse et trois mauvaises pour le QCM. Tu relis, tu retires ce qui ne va pas, et la leçon est prête.</p>
+        <div class="password-grid">
+          <div class="field">
+            <label for="ai-title">Titre de la leçon <span class="muted">(facultatif)</span></label>
+            <input id="ai-title" type="text" maxlength="120" placeholder="Chapitre 3 — Le mix marketing" />
+          </div>
+          <div class="field">
+            <label for="ai-folder">Dossier</label>
+            <select id="ai-folder"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="ai-file">Fichier du cours</label>
+          <div class="file-row">
+            <label class="btn btn-ghost" for="ai-file"><i data-lucide="upload" aria-hidden="true"></i><span>Choisir un fichier</span></label>
+            <input id="ai-file" type="file" accept=".pdf,.pptx,.docx,.txt,.md,application/pdf,text/plain" class="sr-only" />
+            <span id="ai-file-label" class="muted small">Aucun fichier</span>
+          </div>
+          <p class="note small">PowerPoint (.pptx), Word (.docx), PDF (12 Mo max), texte. Les anciens .ppt/.doc doivent être enregistrés au format récent.</p>
+        </div>
+        <div class="field">
+          <label for="ai-text">Ou colle le cours ici</label>
+          <textarea id="ai-text" class="note-textarea" rows="8" placeholder="Colle ta synthèse, tes notes, le contenu de tes slides…"></textarea>
+        </div>
+        <div class="field ai-count-field">
+          <label for="ai-count">Nombre de questions</label>
+          <select id="ai-count">
+            <option value="10">10</option>
+            <option value="15" selected>15</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+          </select>
+        </div>
+        <p id="ai-error" class="form-error" role="alert" hidden></p>
+        <div class="deck-footer">
+          <button id="ai-generate" class="btn btn-primary" type="submit"><i data-lucide="sparkles" aria-hidden="true"></i><span>Générer le quiz</span></button>
+          <span id="ai-quota" class="muted small"></span>
+        </div>
+        <p id="ai-progress" class="note" hidden><span class="spinner spinner-dark" aria-hidden="true"></span> L’IA lit ton cours et rédige les questions… (30 secondes à 2 minutes selon la longueur)</p>
+      </form>
+      <section id="ai-result" class="ai-result" hidden>
+        <h2>Cartes proposées</h2>
+        <p id="ai-count-label" class="note"></p>
+        <ul id="ai-cards" class="ai-cards"></ul>
+        <div class="deck-footer">
+          <button id="ai-save" class="btn btn-primary" type="button"><i data-lucide="check" aria-hidden="true"></i><span>Créer la leçon</span></button>
+        </div>
+      </section>
     </main>
 
     <!-- Lecture d'une note de cours -->

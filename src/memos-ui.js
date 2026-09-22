@@ -3,6 +3,7 @@ import { store, isDue, schedule, previewInterval, GRADES, hasLocalDecks, cleanWr
 import { library, flattenFolders } from './library.js';
 import { folderHash } from './library-ui.js';
 import { shareApi, rankingHtml } from './share-ui.js';
+import { aiStatus, aiSuggest } from './ai-ui.js';
 import { currentUser } from './auth.js';
 import { ApiError } from './api.js';
 import { $, refreshIcons, escapeHtml, toast, setLoading } from './ui.js';
@@ -13,8 +14,11 @@ const errorText = (err, fallback) => (err instanceof ApiError || err instanceof 
 let editing = null; // { id } ou null pour une nouvelle leçon
 
 let folders = [];
+let aiEnabled = false;
 
 async function fillFolderSelect(selected) {
+  aiEnabled = (await aiStatus()).enabled;
+  for (const b of document.querySelectorAll('#deck-cards .ai-fill')) b.hidden = !aiEnabled;
   try {
     folders = (await library().tree()).folders;
   } catch {
@@ -80,7 +84,10 @@ function addCardRow(card = {}) {
     <input type="text" class="back-input" maxlength="2000" placeholder="Réponse ou définition" aria-label="Réponse" />
     <button type="button" class="btn btn-icon btn-icon-plain remove" aria-label="Supprimer cette carte"><i data-lucide="trash-2" aria-hidden="true"></i></button>
     <div class="card-extra">
-      <button type="button" class="btn btn-ghost btn-sm toggle-wrong" aria-expanded="false"><i data-lucide="list-checks" aria-hidden="true"></i><span>Mauvaises réponses (QCM)</span><span class="wrong-count"></span></button>
+      <div class="card-tools">
+        <button type="button" class="btn btn-ghost btn-sm toggle-wrong" aria-expanded="false"><i data-lucide="list-checks" aria-hidden="true"></i><span>Mauvaises réponses (QCM)</span><span class="wrong-count"></span></button>
+        <button type="button" class="btn btn-ghost btn-sm btn-ai ai-fill" hidden title="Propose la réponse (si vide) et trois mauvaises réponses"><i data-lucide="sparkles" aria-hidden="true"></i><span>Compléter avec l’IA</span></button>
+      </div>
       <div class="wrong-box" hidden>
         <p class="note small">Propositions fausses affichées dans le quiz à côté de la bonne réponse. Sans elles, le quiz pioche dans les réponses des autres cartes.</p>
         <div class="wrong-rows"></div>
@@ -118,6 +125,36 @@ function addCardRow(card = {}) {
     row.querySelector('.add-wrong').hidden = wrongRows.children.length >= 5;
   };
   for (const w of card.wrong ?? []) addWrong(w);
+  const aiBtn = row.querySelector('.ai-fill');
+  aiBtn.hidden = !aiEnabled;
+  aiBtn.addEventListener('click', async () => {
+    const front = row.querySelector('.front-input').value.trim();
+    const backInput = row.querySelector('.back-input');
+    if (!front) {
+      toast('Écris d’abord la question.');
+      row.querySelector('.front-input').focus();
+      return;
+    }
+    setLoading(aiBtn, true);
+    try {
+      const res = await aiSuggest(front, backInput.value.trim(), $('deck-title').value.trim());
+      if (!backInput.value.trim()) backInput.value = res.back;
+      // Les mauvaises réponses proposées remplacent les lignes vides, sans écraser ce qui est écrit.
+      const existing = [...wrongRows.querySelectorAll('.wrong-input')];
+      for (const line of existing) if (!line.value.trim()) line.closest('.wrong-row').remove();
+      const kept = [...wrongRows.querySelectorAll('.wrong-input')].map((i) => i.value.trim());
+      for (const w of res.wrong) if (!kept.includes(w) && wrongRows.children.length < 5) addWrong(w);
+      wrongBox.hidden = false;
+      toggle.setAttribute('aria-expanded', 'true');
+      refreshIcons();
+      updateCount();
+      toast(`Carte complétée (${res.limit - res.used} demandes IA restantes aujourd’hui).`);
+    } catch (err) {
+      toast(errorText(err, 'L’IA n’a pas pu compléter cette carte.'));
+    } finally {
+      setLoading(aiBtn, false);
+    }
+  });
   toggle.addEventListener('click', () => {
     const open = wrongBox.hidden;
     wrongBox.hidden = !open;

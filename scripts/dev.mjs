@@ -2,7 +2,12 @@
 // Sans PHP dans le PATH, seul Vite démarre et le site tourne sans compte.
 import { spawn, spawnSync } from 'node:child_process';
 
-const PHP_ARGS = ['-d', 'extension=pdo_sqlite', '-d', 'extension=pdo_mysql', '-d', 'extension=mbstring', '-S', '127.0.0.1:8080', '-t', '.'];
+import { existsSync } from 'node:fs';
+
+const PHP_ARGS = ['-d', 'extension=pdo_sqlite', '-d', 'extension=pdo_mysql', '-d', 'extension=mbstring', '-d', 'extension=curl', '-d', 'extension=openssl', '-S', '127.0.0.1:8080', '-t', '.'];
+// Sur Windows, PHP sans php.ini n'a pas de certificats racine : on prend ceux de Git pour parler à l'API IA en HTTPS.
+const CA = 'C:/Program Files/Git/mingw64/etc/ssl/certs/ca-bundle.crt';
+if (process.platform === 'win32' && existsSync(CA)) PHP_ARGS.unshift('-d', `curl.cainfo=${CA}`);
 const shell = process.platform === 'win32';
 const children = [];
 
