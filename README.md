@@ -32,13 +32,29 @@ Sans l'API, le site fonctionne quand même : comptes désactivés, scores et mé
 
 ## Déployer sur Infomaniak (PHP + MySQL)
 
-1. Dans le manager Infomaniak, créer une base MySQL et exécuter `api/schema.mysql.sql` (phpMyAdmin → onglet SQL).
-2. `npm run package` : construit le site et prépare `dist/` avec `dist/api/` (PHP, `.htaccess`, schémas).
-3. Envoyer par FTP/SSH **tout le contenu de `dist/`** à la racine du site : `/index.html`, `/assets/…`, `/flags/…`, `/api/*.php`.
-4. Sur le serveur, créer `/api/.env` à partir de `.env.example` : `DB_DSN` (hôte MySQL Infomaniak, nom de base), `DB_USER`, `DB_PASSWORD`, `APP_ORIGIN=https://ton-domaine`, et `MAIL_FROM=no-reply@ton-domaine` (adresse du domaine hébergé, pour les e-mails « mot de passe oublié » et de confirmation de nouvelle adresse envoyés via `mail()`). Si le site n’est pas à la racine du domaine, ajouter `APP_URL=https://ton-domaine/sous-dossier`. En local, aucun e-mail n’est envoyé : le lien est écrit dans `api/data/mail.log` et proposé directement dans la fenêtre.
-5. Vérifier que PHP ≥ 8.1 est sélectionné pour le site et que HTTPS est actif (le cookie de session est marqué `secure`).
+Deux méthodes. **Avec un accès SSH, préférer la première** (mise à jour en une commande).
 
-`.env`, `config.php`, `_bootstrap.php` et les schémas sont protégés par `api/.htaccess`. Pour mettre à jour le site : `npm run package` puis renvoyer `dist/` (le `.env` du serveur n'est pas touché).
+### A. Par Git + SSH (recommandé)
+
+1. Base MySQL créée dans le manager, puis `api/schema.mysql.sql` exécuté (phpMyAdmin → SQL).
+2. Cloner le dépôt **à côté** du dossier du site, jamais dedans (sinon `.git`, les sources et `node_modules` seraient téléchargeables) :
+   ```bash
+   cd ~ && git clone https://github.com/chewie-ui/mnemo.git sources/mnemo
+   cd sources/mnemo && npm ci && npm run package
+   ```
+3. Dans le manager, pointer la **racine du site** sur `~/sources/mnemo/dist` (ou copier : `cp -r dist/. ~/sites/<domaine>/`).
+4. Créer `dist/api/.env` (voir `.env.example`). `npm run package` le conserve d'une construction à l'autre.
+5. Mettre à jour ensuite : `cd ~/sources/mnemo && git pull && npm run package`.
+
+Sans Node sur le serveur : construire sur son PC (`npm run package`) et n'envoyer que `dist/`.
+
+### B. Par FTP (FileZilla)
+
+1. Mêmes étapes 1 et 4 que ci-dessus.
+2. `npm run package` sur son PC : `dist/` **et** `dist.zip` sont créés.
+3. Envoyer `dist.zip` (un seul fichier, ~3 Mo au lieu de 400 fichiers), puis l'extraire à la racine du site avec le gestionnaire de fichiers d'Infomaniak.
+
+Dans les deux cas : PHP ≥ 8.1 sélectionné pour le site, HTTPS actif (le cookie de session est marqué `secure`), et `.env`, `config.php`, `_bootstrap.php` et les schémas protégés par `api/.htaccess`.
 
 ## Structure
 
