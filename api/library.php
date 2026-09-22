@@ -34,6 +34,15 @@ function ensureLibrary(): void {
   } catch (PDOException) {
     $db->exec('ALTER TABLE decks ADD COLUMN folder_id ' . ($mysql ? 'INT UNSIGNED NULL' : 'INTEGER NULL'));
   }
+  // La table des partages peut ne pas exister encore (créée par decks.php) : le tree la lit.
+  $db->exec($mysql
+    ? 'CREATE TABLE IF NOT EXISTS deck_shares (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, deck_id INT UNSIGNED NOT NULL, user_id INT UNSIGNED NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY (deck_id, user_id), INDEX (user_id),
+        FOREIGN KEY (deck_id) REFERENCES decks(id) ON DELETE CASCADE, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    : 'CREATE TABLE IF NOT EXISTS deck_shares (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, deck_id INTEGER NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE (deck_id, user_id))');
 }
 ensureLibrary();
 
@@ -86,12 +95,13 @@ switch (action()) {
     $stmt = $db->prepare('SELECT d.id, d.title, d.description, d.folder_id, d.updated_at,
         (SELECT COUNT(*) FROM cards c WHERE c.deck_id = d.id) AS cards,
         (SELECT COUNT(*) FROM cards c WHERE c.deck_id = d.id AND (c.due_at IS NULL OR c.due_at <= ?)) AS due,
-        (SELECT COUNT(*) FROM cards c WHERE c.deck_id = d.id AND c.choices IS NOT NULL) AS qcm
+        (SELECT COUNT(*) FROM cards c WHERE c.deck_id = d.id AND c.choices IS NOT NULL) AS qcm,
+        (SELECT COUNT(*) FROM deck_shares s WHERE s.deck_id = d.id) AS shared_with
       FROM decks d WHERE d.user_id = ? ORDER BY d.updated_at DESC');
     $stmt->execute([gmdate('Y-m-d H:i:s'), $uid]);
     $decks = array_map(fn($r) => [
       'id' => (int) $r['id'], 'title' => $r['title'], 'description' => $r['description'], 'folderId' => $r['folder_id'] === null ? null : (int) $r['folder_id'],
-      'updatedAt' => $r['updated_at'], 'cards' => (int) $r['cards'], 'due' => (int) $r['due'], 'qcm' => (int) $r['qcm'],
+      'updatedAt' => $r['updated_at'], 'cards' => (int) $r['cards'], 'due' => (int) $r['due'], 'qcm' => (int) $r['qcm'], 'sharedWith' => (int) $r['shared_with'],
     ], $stmt->fetchAll());
     $stmt = $db->prepare('SELECT id, folder_id, title, body, updated_at FROM notes WHERE user_id = ? ORDER BY updated_at DESC');
     $stmt->execute([$uid]);

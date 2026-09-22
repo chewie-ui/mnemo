@@ -86,7 +86,7 @@
       <div id="subdivision-grid" class="region-grid region-grid-compact" role="list"></div>
       <p id="subdivision-empty" class="empty" hidden>Aucun pays ne correspond.</p>
 
-      <h2 id="memos" class="section-title"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Mes mémos</span></h2>
+      <h2 id="memos" class="section-title"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Mes cours</span></h2>
       <p class="section-note">Tes propres leçons : une définition, une date, un article de loi… en cartes question → réponse, révisées au bon moment.</p>
       <div id="home-memos" class="region-grid" role="list"></div>
 
@@ -254,7 +254,7 @@
     <!-- Révision (cartes) et quiz (QCM) -->
     <main id="screen-study" class="screen container page study" hidden>
       <div class="page-head">
-        <a id="study-back" class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Mes mémos</span></a>
+        <a id="study-back" class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Mes cours</span></a>
         <h1 id="study-title">Révision</h1>
         <span id="study-progress" class="study-progress muted"></span>
       </div>
@@ -520,6 +520,28 @@
     </div>
 
     <!-- Connexion / inscription -->
+    <div id="share-modal" class="modal-backdrop" hidden>
+      <form id="share-form" class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="share-title" novalidate>
+        <h2 id="share-title">Partager la leçon</h2>
+        <p class="note">Tes amis cochés verront la leçon dans leurs cours, pourront la réviser et faire le quiz. Chacun garde sa propre progression, et les meilleurs scores font un classement.</p>
+        <div id="share-friends" class="share-friends"></div>
+        <div class="hero-actions">
+          <button id="share-submit" class="btn btn-primary" type="submit"><i data-lucide="send" aria-hidden="true"></i><span>Partager</span></button>
+          <button id="share-cancel" class="btn btn-ghost" type="button"><span>Annuler</span></button>
+        </div>
+      </form>
+    </div>
+
+    <div id="rank-modal" class="modal-backdrop" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="rank-title">
+        <div class="modal-head">
+          <h2 id="rank-title">Classement</h2>
+          <button id="rank-close" class="btn btn-icon btn-icon-plain" type="button" aria-label="Fermer"><i data-lucide="x" aria-hidden="true"></i></button>
+        </div>
+        <div id="rank-body"></div>
+      </section>
+    </div>
+
     <div id="n2d-modal" class="modal-backdrop" hidden>
       <form id="n2d-form" class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="n2d-heading" novalidate>
         <h2 id="n2d-heading">Transformer en leçon</h2>

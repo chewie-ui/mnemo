@@ -339,7 +339,7 @@ switch (action()) {
     $db->prepare('DELETE FROM friendships WHERE user_id = ? OR friend_id = ?')->execute([$uid, $uid]);
     $db->prepare('DELETE FROM cards WHERE deck_id IN (SELECT id FROM decks WHERE user_id = ?)')->execute([$uid]);
     $db->prepare('DELETE FROM decks WHERE user_id = ?')->execute([$uid]);
-    foreach (['notes', 'folders'] as $table) {
+    foreach (['deck_shares', 'card_reviews', 'deck_scores', 'notes', 'folders'] as $table) {
       try {
         $db->prepare("DELETE FROM $table WHERE user_id = ?")->execute([$uid]);
       } catch (PDOException) {

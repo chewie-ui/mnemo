@@ -2,6 +2,7 @@
 import { store, isDue, schedule, previewInterval, GRADES, hasLocalDecks, cleanWrong, quizReady } from './memos.js';
 import { library, flattenFolders } from './library.js';
 import { folderHash } from './library-ui.js';
+import { shareApi, rankingHtml } from './share-ui.js';
 import { currentUser } from './auth.js';
 import { ApiError } from './api.js';
 import { $, refreshIcons, escapeHtml, toast, setLoading } from './ui.js';
@@ -247,7 +248,7 @@ export async function renderStudy(id, kind) {
     return;
   }
   $('study-title').textContent = deck.title;
-  $('study-back').href = '#/memos';
+  $('study-back').href = deck.mine === false ? '#/memos' : folderHash(deck.folderId ?? null);
 
   if (kind === 'quiz') {
     const summary = { cards: deck.cards.length, qcm: deck.cards.filter((c) => c.wrong?.length).length };
@@ -394,12 +395,26 @@ function nextQuiz() {
   );
 }
 
-function renderSummary() {
+async function renderSummary() {
   const s = studySession;
   const body = $('study-body');
   $('study-progress').textContent = '';
   const reviewed = s.good + s.again;
   const rate = reviewed ? Math.round((s.good / reviewed) * 100) : 0;
+  // Quiz d'une leçon (à moi ou reçue) : le score alimente le classement entre amis.
+  let rankBlock = '';
+  if (s.kind === 'quiz' && currentUser() && s.deck.owner) {
+    try {
+      const res = await shareApi.score(s.deck.id, s.good, s.total);
+      if (res.ranking.length > 1) {
+        rankBlock = `<h3 class="rank-heading">${res.isBest ? 'Nouveau record personnel !' : `Ton record : ${res.best} %`}</h3>${rankingHtml(res.ranking, currentUser().id)}`;
+      } else if (res.isBest) {
+        rankBlock = `<p class="note">Record personnel : ${res.best} %. Partage la leçon avec des amis pour comparer vos scores.</p>`;
+      }
+    } catch {
+      /* classement indisponible : pas bloquant */
+    }
+  }
   body.innerHTML = `
     <div class="study-summary">
       <h2>${s.kind === 'quiz' ? 'Quiz terminé' : 'Révision terminée'}</h2>
@@ -409,9 +424,10 @@ function renderSummary() {
         <div class="stat"><span class="stat-value">${s.good}</span><span class="stat-label">acquis</span></div>
         <div class="stat"><span class="stat-value">${s.again}</span><span class="stat-label">à revoir</span></div>
       </div>
+      ${rankBlock}
       <div class="hero-actions" style="justify-content:center">
-        <a class="btn btn-primary" href="#/memos"><span>Mes mémos</span></a>
-        <a class="btn btn-ghost" href="#/study/${s.deck.id}"><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Recommencer</span></a>
+        <a class="btn btn-primary" href="${s.deck.mine === false ? '#/memos' : folderHash(s.deck.folderId ?? null)}"><span>Mes cours</span></a>
+        <a class="btn btn-ghost" href="#/${s.kind === 'quiz' ? 'quiz' : 'study'}/${s.deck.id}"><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Recommencer</span></a>
       </div>
     </div>`;
   refreshIcons();

@@ -6,12 +6,15 @@ import { currentUser } from './auth.js';
 import { ApiError } from './api.js';
 import { $, refreshIcons, escapeHtml, toast, setLoading, formatDate } from './ui.js';
 import { openNoteToDeck, initNoteToDeck, extractCards } from './note-to-deck.js';
+import { shareApi, openShare, openLeaderboard, initShare } from './share-ui.js';
+import { avatarHtml } from './avatar.js';
 
 const errorText = (err, fallback) => (err instanceof ApiError || err instanceof Error ? err.message : fallback);
 const same = (a, b) => String(a ?? '') === String(b ?? '');
 
 let tree = null; // { folders, decks, notes } du dernier rendu
 let currentFolder = null;
+let sharedDecks = []; // leçons reçues d'amis (racine seulement)
 
 export const folderHash = (id) => (id == null ? '#/memos' : `#/memos/f/${id}`);
 
@@ -29,6 +32,7 @@ export async function renderLibrary(folderId = null) {
   $('memos-note').textContent = 'Sans compte, tes cours restent dans ce navigateur. Connecte-toi pour les retrouver partout.';
   try {
     await loadTree();
+    sharedDecks = folderId == null && currentUser() ? await shareApi.shared().catch(() => []) : [];
   } catch (err) {
     body.innerHTML = `<p class="form-error">${escapeHtml(errorText(err, 'Impossible de charger tes cours.'))}</p>`;
     return;
@@ -60,7 +64,7 @@ export async function renderLibrary(folderId = null) {
     return [inner && `${inner} dossier${inner > 1 ? 's' : ''}`, d && `${d} leçon${d > 1 ? 's' : ''}`, n && `${n} note${n > 1 ? 's' : ''}`].filter(Boolean).join(' · ') || 'Vide';
   };
 
-  if (!folders.length && !decks.length && !notes.length) {
+  if (!folders.length && !decks.length && !notes.length && !sharedDecks.length) {
     body.innerHTML = here
       ? `<div class="empty-state"><h2>Dossier vide</h2><p>Ajoute un sous-dossier, une leçon (cartes à réviser) ou une note de cours.</p></div>`
       : `<div class="empty-state">
@@ -87,11 +91,24 @@ export async function renderLibrary(folderId = null) {
       <article class="region-card deck-card" role="listitem">
         <div class="lib-card-head"><h3 class="name">${escapeHtml(d.title)}</h3><button class="btn btn-icon btn-icon-plain lib-menu-btn" type="button" aria-label="Actions pour ${escapeHtml(d.title)}" data-menu="deck:${d.id}"><i data-lucide="ellipsis" aria-hidden="true"></i></button></div>
         ${d.description ? `<p class="desc">${escapeHtml(d.description)}</p>` : ''}
-        <p class="deck-meta"><span>${d.cards} carte${d.cards > 1 ? 's' : ''}${d.qcm ? ` · ${d.qcm} QCM` : ''}</span>${d.due ? `<span class="due">${d.due} à réviser</span>` : '<span>Rien à réviser pour l’instant</span>'}</p>
+        <p class="deck-meta"><span>${d.cards} carte${d.cards > 1 ? 's' : ''}${d.qcm ? ` · ${d.qcm} QCM` : ''}</span>${d.due ? `<span class="due">${d.due} à réviser</span>` : '<span>Rien à réviser pour l’instant</span>'}${d.sharedWith ? `<span class="shared-pill"><i data-lucide="users" aria-hidden="true"></i>${d.sharedWith} ami${d.sharedWith > 1 ? 's' : ''}</span>` : ''}</p>
         <div class="actions">
           <a class="btn btn-primary" href="#/study/${d.id}"><i data-lucide="book-open" aria-hidden="true"></i><span>Réviser</span></a>
           <a class="btn btn-ghost" href="#/quiz/${d.id}" ${quizReady(d) ? '' : 'aria-disabled="true" title="Il faut au moins 4 cartes, ou des mauvaises réponses sur chaque carte, pour un quiz"'}><i data-lucide="list-checks" aria-hidden="true"></i><span>Quiz</span></a>
           <a class="btn btn-ghost" href="#/memos/${d.id}"><i data-lucide="pencil" aria-hidden="true"></i><span>Modifier</span></a>
+        </div>
+      </article>`).join('')}</div>` : ''}
+    ${sharedDecks.length ? `<h2 class="lib-section"><i data-lucide="users" aria-hidden="true"></i><span>Partagées avec moi</span></h2>
+    <div class="region-grid" role="list">${sharedDecks.map((d) => `
+      <article class="region-card deck-card lib-shared" role="listitem">
+        <div class="lib-card-head"><h3 class="name">${escapeHtml(d.title)}</h3><button class="btn btn-icon btn-icon-plain lib-menu-btn" type="button" aria-label="Actions pour ${escapeHtml(d.title)}" data-menu="shared:${d.id}"><i data-lucide="ellipsis" aria-hidden="true"></i></button></div>
+        <p class="deck-meta"><span class="name-with-avatar">${avatarHtml(d.owner, 'sm')}<span>par ${escapeHtml(d.owner.name)}</span></span></p>
+        ${d.description ? `<p class="desc">${escapeHtml(d.description)}</p>` : ''}
+        <p class="deck-meta"><span>${d.cards} carte${d.cards > 1 ? 's' : ''}${d.qcm ? ` · ${d.qcm} QCM` : ''}</span>${d.due ? `<span class="due">${d.due} à réviser</span>` : '<span>Rien à réviser pour l’instant</span>'}${d.myBest !== null ? `<span class="shared-pill"><i data-lucide="trophy" aria-hidden="true"></i>${d.myBest} %</span>` : ''}</p>
+        <div class="actions">
+          <a class="btn btn-primary" href="#/study/${d.id}"><i data-lucide="book-open" aria-hidden="true"></i><span>Réviser</span></a>
+          <a class="btn btn-ghost" href="#/quiz/${d.id}" ${quizReady(d) ? '' : 'aria-disabled="true" title="Il faut au moins 4 cartes, ou des mauvaises réponses sur chaque carte, pour un quiz"'}><i data-lucide="list-checks" aria-hidden="true"></i><span>Quiz</span></a>
+          <button class="btn btn-ghost" type="button" data-rank="${d.id}"><i data-lucide="trophy" aria-hidden="true"></i><span>Classement</span></button>
         </div>
       </article>`).join('')}</div>` : ''}
     ${notes.length ? `<h2 class="lib-section"><i data-lucide="file-text" aria-hidden="true"></i><span>Notes de cours</span></h2>
@@ -253,6 +270,10 @@ function openMenu(btn) {
     const d = find(tree.decks);
     menu.open(btn, [
       { act: 'edit', icon: 'pencil', label: 'Modifier la leçon', run: () => (location.hash = `#/memos/${d.id}`) },
+      ...(currentUser() ? [
+        { act: 'share', icon: 'send', label: d.sharedWith ? `Partager (${d.sharedWith} ami${d.sharedWith > 1 ? 's' : ''})` : 'Partager avec des amis', run: () => openShare(d, () => renderLibrary(currentFolder)) },
+        { act: 'rank', icon: 'trophy', label: 'Classement', run: () => openLeaderboard(d) },
+      ] : []),
       { act: 'move', icon: 'folder-input', label: 'Déplacer', run: async () => {
         const r = await askFolder({ title: `Déplacer « ${d.title} » vers`, current: d.folderId });
         if (r) await run(() => library().move('deck', d.id, r.folderId), 'Leçon déplacée.');
@@ -260,6 +281,20 @@ function openMenu(btn) {
       { act: 'delete', icon: 'trash-2', label: 'Supprimer la leçon', danger: true, run: async () => {
         if (!window.confirm(`Supprimer la leçon « ${d.title} » et toutes ses cartes ?`)) return;
         await run(() => deckStore().remove(d.id), 'Leçon supprimée.');
+      } },
+    ]);
+  } else if (type === 'shared') {
+    const d = sharedDecks.find((x) => same(x.id, id));
+    menu.open(btn, [
+      { act: 'rank', icon: 'trophy', label: 'Classement', run: () => openLeaderboard(d) },
+      { act: 'copy', icon: 'copy', label: 'Copier dans mes cours', run: async () => {
+        try {
+          const copy = await shareApi.copy(d.id);
+          toast('Copie ajoutée à la racine de tes cours.');
+          location.hash = `#/memos/${copy.id}`;
+        } catch (err) {
+          toast(errorText(err, 'Copie impossible.'));
+        }
       } },
     ]);
   } else if (type === 'note') {
@@ -364,6 +399,7 @@ function autosize(textarea) {
 
 export function initLibrary() {
   initNoteToDeck();
+  initShare();
   $('note-to-deck').addEventListener('click', () => currentNote && openNoteToDeck(currentNote));
   $('lib-new-folder').addEventListener('click', newFolder);
   $('library-body').addEventListener('click', async (e) => {
@@ -374,6 +410,12 @@ export function initLibrary() {
       return;
     }
     if (e.target.closest('[data-new-folder]')) return newFolder();
+    const rank = e.target.closest('[data-rank]');
+    if (rank) {
+      const d = sharedDecks.find((x) => same(x.id, rank.dataset.rank));
+      if (d) openLeaderboard(d);
+      return;
+    }
     const sample = e.target.closest('#memos-sample');
     if (sample) {
       setLoading(sample, true);
