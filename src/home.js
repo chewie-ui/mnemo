@@ -10,6 +10,10 @@ const MODE_ICON = { countries: 'map', flags: 'flag', flagpick: 'layout-grid', ca
 const PRIMARY_MODES = new Set(['countries', 'flags', 'flagpick', 'capitals']);
 const expanded = new Set(); // cartes dépliées, conservées d'un rendu à l'autre
 
+// « Pays en détail » : 179 pays, affichés par pages pour que la liste reste courte.
+const PER_PAGE = 24;
+let countryPage = 1;
+
 const fold = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 export function renderHome() {
@@ -20,8 +24,8 @@ export function renderHome() {
   refreshIcons();
 }
 
-// Une carte par pays, avec un bouton par découpage (départements, régions…).
-export function renderSubdivisions(query) {
+// Une carte par pays, avec un bouton par découpage (départements, régions…), page par page.
+export function renderSubdivisions(query, page = countryPage) {
   const q = fold(query.trim());
   const byCountry = new globalThis.Map();
   for (const region of SUBDIVISION_REGIONS) {
@@ -30,8 +34,66 @@ export function renderSubdivisions(query) {
     byCountry.get(region.country).push(region);
   }
   const groups = [...byCountry.entries()].map(([country, maps]) => ({ name: country, flag: maps[0].file.slice(0, 2), maps }));
-  renderCards($('subdivision-grid'), groups, { compact: true });
+  const pages = Math.max(1, Math.ceil(groups.length / PER_PAGE));
+  countryPage = Math.min(Math.max(1, page), pages);
+  const start = (countryPage - 1) * PER_PAGE;
+  renderCards($('subdivision-grid'), groups.slice(start, start + PER_PAGE), { compact: true });
+  renderPager($('subdivision-pager'), countryPage, pages, groups.length, (p) => {
+    renderSubdivisions($('country-search').value, p);
+    refreshIcons();
+    // On remonte à la liste, pas en haut de page : on reste dans la section.
+    document.getElementById('pays')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   $('subdivision-empty').hidden = groups.length > 0;
+}
+
+// Numéros de pages : 1 … 4 5 [6] 7 8 … 12, avec Précédent / Suivant.
+function renderPager(nav, page, pages, total, onGo) {
+  nav.hidden = pages <= 1;
+  if (pages <= 1) {
+    nav.innerHTML = '';
+    return;
+  }
+  const numbers = [];
+  const push = (n) => {
+    if (n >= 1 && n <= pages && !numbers.includes(n)) numbers.push(n);
+  };
+  push(1);
+  for (let n = page - 1; n <= page + 1; n++) push(n);
+  push(pages);
+  numbers.sort((a, b) => a - b);
+
+  nav.innerHTML = '';
+  const add = (label, { go, icon, current = false, disabled = false, aria } = {}) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `pager-btn${current ? ' is-current' : ''}`;
+    btn.disabled = disabled;
+    if (current) btn.setAttribute('aria-current', 'page');
+    if (aria) btn.setAttribute('aria-label', aria);
+    btn.innerHTML = icon ? `<i data-lucide="${icon}" aria-hidden="true"></i>` : label;
+    if (go) btn.addEventListener('click', () => onGo(go));
+    nav.appendChild(btn);
+  };
+
+  add('', { icon: 'chevron-left', go: page - 1, disabled: page === 1, aria: 'Page précédente' });
+  let last = 0;
+  for (const n of numbers) {
+    if (n - last > 1) {
+      const gap = document.createElement('span');
+      gap.className = 'pager-gap';
+      gap.textContent = '…';
+      nav.appendChild(gap);
+    }
+    add(String(n), { go: n, current: n === page, aria: `Page ${n}` });
+    last = n;
+  }
+  add('', { icon: 'chevron-right', go: page + 1, disabled: page === pages, aria: 'Page suivante' });
+
+  const count = document.createElement('span');
+  count.className = 'pager-count muted small';
+  count.textContent = `${total} pays`;
+  nav.appendChild(count);
 }
 
 function renderCards(grid, items, { compact = false } = {}) {
@@ -158,6 +220,7 @@ async function renderMemosPreview() {
 }
 
 $('country-search').addEventListener('input', (e) => {
-  renderSubdivisions(e.target.value);
+  // Nouvelle recherche : on repart de la première page.
+  renderSubdivisions(e.target.value, 1);
   refreshIcons();
 });
