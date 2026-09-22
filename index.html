@@ -299,6 +299,10 @@
         </div>
         <h2 class="cards-title">Cartes <span id="deck-count" class="muted"></span></h2>
         <p class="note">À gauche la question (ou le terme), à droite la réponse (ou la définition). Les cartes vides sont ignorées. Pour un vrai QCM, ajoute des mauvaises réponses à une carte.</p>
+        <div class="deck-actions deck-ai-row">
+          <button id="deck-ai-all" class="btn btn-ghost btn-ai" type="button" hidden><i data-lucide="sparkles" aria-hidden="true"></i><span>Compléter toutes les cartes avec l’IA</span></button>
+          <span id="deck-ai-quota" class="muted small"></span>
+        </div>
         <div id="deck-cards" class="card-rows"></div>
         <div class="deck-actions">
           <button id="deck-add" class="btn btn-ghost" type="button"><i data-lucide="plus" aria-hidden="true"></i><span>Ajouter une carte</span></button>

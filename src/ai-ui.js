@@ -24,6 +24,8 @@ export async function aiStatus(force = false) {
 }
 
 export const aiSuggest = (front, back, title) => post('ai', 'suggest', { front, back, title });
+// Plusieurs cartes d'un coup : un seul appel, donc une seule unité de quota.
+export const aiSuggestMany = (cards, title) => post('ai', 'suggest', { cards, title });
 
 // ─── Écran de génération ───
 let source = { text: '', pdf: null, label: '' };

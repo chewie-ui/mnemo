@@ -3,7 +3,7 @@ import { store, isDue, schedule, previewInterval, GRADES, hasLocalDecks, cleanWr
 import { library, flattenFolders } from './library.js';
 import { folderHash } from './library-ui.js';
 import { shareApi, rankingHtml } from './share-ui.js';
-import { aiStatus, aiSuggest } from './ai-ui.js';
+import { aiStatus, aiSuggest, aiSuggestMany } from './ai-ui.js';
 import { currentUser } from './auth.js';
 import { ApiError } from './api.js';
 import { $, refreshIcons, escapeHtml, toast, setLoading } from './ui.js';
@@ -16,8 +16,16 @@ let editing = null; // { id } ou null pour une nouvelle leçon
 let folders = [];
 let aiEnabled = false;
 
+function showQuota(st) {
+  const left = Math.max(0, (st.limit ?? 0) - (st.used ?? 0));
+  $('deck-ai-quota').textContent = st.enabled ? `${left} demande${left > 1 ? 's' : ''} IA restante${left > 1 ? 's' : ''} aujourd’hui` : '';
+}
+
 async function fillFolderSelect(selected) {
-  aiEnabled = (await aiStatus()).enabled;
+  const st = await aiStatus();
+  aiEnabled = st.enabled;
+  $('deck-ai-all').hidden = !aiEnabled;
+  showQuota(st);
   for (const b of document.querySelectorAll('#deck-cards .ai-fill')) b.hidden = !aiEnabled;
   try {
     folders = (await library().tree()).folders;
@@ -125,6 +133,16 @@ function addCardRow(card = {}) {
     row.querySelector('.add-wrong').hidden = wrongRows.children.length >= 5;
   };
   for (const w of card.wrong ?? []) addWrong(w);
+  // Remplit la ligne avec une proposition de l'IA sans écraser ce qui est déjà écrit.
+  row.applyAi = (res) => {
+    const backInput = row.querySelector('.back-input');
+    if (!backInput.value.trim()) backInput.value = res.back;
+    for (const line of [...wrongRows.querySelectorAll('.wrong-input')]) if (!line.value.trim()) line.closest('.wrong-row').remove();
+    const kept = [...wrongRows.querySelectorAll('.wrong-input')].map((i) => i.value.trim());
+    for (const w of res.wrong) if (!kept.includes(w) && wrongRows.children.length < 5) addWrong(w);
+    wrongBox.hidden = false;
+    toggle.setAttribute('aria-expanded', 'true');
+  };
   const aiBtn = row.querySelector('.ai-fill');
   aiBtn.hidden = !aiEnabled;
   aiBtn.addEventListener('click', async () => {
@@ -138,16 +156,10 @@ function addCardRow(card = {}) {
     setLoading(aiBtn, true);
     try {
       const res = await aiSuggest(front, backInput.value.trim(), $('deck-title').value.trim());
-      if (!backInput.value.trim()) backInput.value = res.back;
-      // Les mauvaises réponses proposées remplacent les lignes vides, sans écraser ce qui est écrit.
-      const existing = [...wrongRows.querySelectorAll('.wrong-input')];
-      for (const line of existing) if (!line.value.trim()) line.closest('.wrong-row').remove();
-      const kept = [...wrongRows.querySelectorAll('.wrong-input')].map((i) => i.value.trim());
-      for (const w of res.wrong) if (!kept.includes(w) && wrongRows.children.length < 5) addWrong(w);
-      wrongBox.hidden = false;
-      toggle.setAttribute('aria-expanded', 'true');
+      row.applyAi(res);
       refreshIcons();
       updateCount();
+      showQuota({ enabled: true, used: res.used, limit: res.limit });
       toast(`Carte complétée (${res.limit - res.used} demandes IA restantes aujourd’hui).`);
     } catch (err) {
       toast(errorText(err, 'L’IA n’a pas pu compléter cette carte.'));
@@ -207,6 +219,41 @@ function readForm() {
   }));
   return { id: editing?.id, title: $('deck-title').value, description: $('deck-description').value, folderId: selectedFolder(), cards };
 }
+
+// Toutes les cartes incomplètes en un seul appel : une seule unité de quota.
+$('deck-ai-all').addEventListener('click', async (e) => {
+  const rows = [...$('deck-cards').children];
+  const todo = rows.filter((row) => {
+    const front = row.querySelector('.front-input').value.trim();
+    const back = row.querySelector('.back-input').value.trim();
+    const wrong = [...row.querySelectorAll('.wrong-input')].filter((i) => i.value.trim()).length;
+    return front && (!back || wrong < 3);
+  });
+  if (!todo.length) return toast('Rien à compléter : toutes les cartes ont déjà une réponse et trois mauvaises réponses.');
+  setLoading(e.currentTarget, true);
+  try {
+    const res = await aiSuggestMany(
+      todo.map((row) => ({ front: row.querySelector('.front-input').value.trim(), back: row.querySelector('.back-input').value.trim() })),
+      $('deck-title').value.trim(),
+    );
+    const byFront = new Map(res.cards.map((c) => [c.front.toLowerCase(), c]));
+    let done = 0;
+    for (const row of todo) {
+      const card = byFront.get(row.querySelector('.front-input').value.trim().toLowerCase());
+      if (!card) continue;
+      row.applyAi(card);
+      done += 1;
+    }
+    refreshIcons();
+    updateCount();
+    showQuota({ enabled: true, used: res.used, limit: res.limit });
+    toast(`${done} carte${done > 1 ? 's' : ''} complétée${done > 1 ? 's' : ''} en une seule demande (${res.limit - res.used} restantes aujourd’hui).`);
+  } catch (err) {
+    toast(errorText(err, 'L’IA n’a pas pu compléter ces cartes.'));
+  } finally {
+    setLoading(e.currentTarget, false);
+  }
+});
 
 $('deck-add').addEventListener('click', () => {
   addCardRow();

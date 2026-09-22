@@ -28,30 +28,39 @@ const PROVIDERS = [
   'openai' => ['model' => null, 'keyEnv' => 'OPENAI_API_KEY', 'pdf' => false, 'base' => 'https://api.openai.com/v1'],
 ];
 
-function aiConfig(): array {
-  $env = fn(string $k, ?string $d = null) => (getenv($k) !== false && getenv($k) !== '') ? getenv($k) : $d;
-  $provider = strtolower($env('AI_PROVIDER', '') ?? '');
-  if (!isset(PROVIDERS[$provider])) {
-    // Sans AI_PROVIDER : le premier fournisseur dont la clé est renseignée.
-    $provider = 'gemini';
-    foreach (PROVIDERS as $name => $p) {
-      if ($env($p['keyEnv'])) {
-        $provider = $name;
-        break;
-      }
-    }
-  }
-  $p = PROVIDERS[$provider];
+// Réglages d'un fournisseur donné (clé, modèle, adresse).
+function providerConfig(string $provider, callable $env, bool $first): ?array {
+  $p = PROVIDERS[$provider] ?? null;
+  // La clé peut venir de AI_API_KEY (fournisseur principal) ou de la variable dédiée.
+  $key = $env($p['keyEnv'] ?? '') ?? ($first ? $env('AI_API_KEY') : null);
+  if (!$p || !$key) return null;
+  $model = $first ? $env('AI_MODEL', $p['model']) : $p['model'];
+  if (!$model) return null;
   return [
     'provider' => $provider,
-    'key' => $env('AI_API_KEY', $env($p['keyEnv'])),
-    'model' => $env('AI_MODEL', $p['model']),
-    // Modèle de secours si le premier est saturé (503) ou limité (429) après quelques essais.
-    'fallback' => $env('AI_FALLBACK_MODEL', $provider === 'gemini' ? 'gemini-3.8-flash' : null),
-    'base' => rtrim($env('AI_BASE_URL', $p['base'] ?? '') ?? '', '/'),
+    'key' => $key,
+    'model' => $model,
+    'base' => rtrim(($first ? $env('AI_BASE_URL', $p['base'] ?? '') : ($p['base'] ?? '')) ?? '', '/'),
     'pdf' => $p['pdf'],
-    'limit' => max(1, (int) $env('AI_DAILY_LIMIT', '20')),
+    'fallback' => $first ? $env('AI_FALLBACK_MODEL', $provider === 'gemini' ? 'gemini-3.8-flash' : null) : ($provider === 'gemini' ? 'gemini-3.8-flash' : null),
     'cainfo' => $env('CA_BUNDLE'),
+  ];
+}
+
+// La liste des fournisseurs utilisables, dans l'ordre : celui demandé d'abord, puis tous ceux
+// dont une clé est renseignée. Quand l'un est à sec (quota du jour) ou saturé, on passe au suivant.
+function aiConfig(): array {
+  $env = fn(string $k, ?string $d = null) => ($k !== '' && getenv($k) !== false && getenv($k) !== '') ? getenv($k) : $d;
+  $wanted = array_filter(array_map('trim', explode(',', strtolower($env('AI_PROVIDERS', $env('AI_PROVIDER', '')) ?? ''))));
+  $order = array_values(array_unique([...$wanted, ...array_keys(PROVIDERS)]));
+  $chain = [];
+  foreach ($order as $name) {
+    $cfg = providerConfig($name, $env, count($chain) === 0 && (!$wanted || $name === $wanted[0]));
+    if ($cfg) $chain[] = $cfg;
+  }
+  return [
+    'chain' => $chain,
+    'limit' => max(1, (int) $env('AI_DAILY_LIMIT', '30')),
   ];
 }
 
@@ -77,8 +86,7 @@ function consume(int $uid): void {
 }
 
 function requireQuota(int $uid, array $cfg): void {
-  if (!$cfg['key']) fail(503, 'L’IA n’est pas configurée sur ce serveur (clé d’API manquante dans le .env).');
-  if (!$cfg['model']) fail(503, "Indique le modèle à utiliser (AI_MODEL) pour le fournisseur {$cfg['provider']}.");
+  if (!$cfg['chain']) fail(503, 'L’IA n’est pas configurée sur ce serveur (clé d’API manquante dans le .env).');
   if (usedToday($uid) >= $cfg['limit']) fail(429, "Quota IA du jour atteint ({$cfg['limit']} générations). Réessaie demain.");
 }
 
@@ -139,13 +147,14 @@ function httpOnce(array $cfg, string $url, array $headers, array $payload): arra
 // Erreurs communes à tous les fournisseurs, avec des messages compréhensibles.
 function checkStatus(int $status, mixed $res, string $raw): void {
   $msg = is_array($res) ? ($res['error']['message'] ?? ($res['message'] ?? null)) : null;
+  if ($status === 200) return;
   // Google renvoie un 400 pour une clé invalide, les autres un 401/403.
   if ($status === 401 || $status === 403 || ($status === 400 && $msg && stripos($msg, 'api key') !== false)) fail(503, 'Clé d’API IA refusée : vérifie la clé dans le .env.');
   if ($status === 404) fail(503, 'Modèle IA introuvable chez ce fournisseur : vérifie AI_MODEL.' . ($msg ? " ($msg)" : ''));
   if ($status === 429 && $msg && stripos($msg, 'PerDay') !== false) {
-    fail(429, 'Quota gratuit de Google épuisé pour aujourd’hui (20 générations par jour et par modèle). Réessaie demain, change AI_MODEL, ou active la facturation dans Google AI Studio.');
+    throw new AiUnavailable('Quota gratuit épuisé pour aujourd’hui chez ce fournisseur — réessaie demain ou ajoute une autre clé dans le .env.');
   }
-  if ($status === 429 || $status === 503) fail(429, 'Le service d’IA gratuit est saturé en ce moment (ou sa limite de quelques requêtes par minute est atteinte). Réessaie dans une minute ou deux.');
+  if ($status === 429 || $status === 503) throw new AiUnavailable('Service d’IA saturé ou limite par minute atteinte — réessaie dans une minute.');
   if ($status >= 400 || !is_array($res)) {
     error_log('ai: HTTP ' . $status . ' ' . substr($raw, 0, 500));
     fail(502, 'L’IA a renvoyé une erreur (' . ($msg ?? "HTTP $status") . ').');
@@ -169,10 +178,30 @@ function stripSchema(array $schema): array {
   return $schema;
 }
 
-// Pose la question au fournisseur configuré, avec une sortie JSON contrainte par $schema.
-// $pdf : PDF en base64 (Gemini et Claude seulement), $text : la demande.
-function askModel(array $cfg, string $system, string $text, ?string $pdf, array $schema, int $maxTokens = 16000): array {
-  if ($pdf !== null && !$cfg['pdf']) fail(422, 'Ce fournisseur d’IA ne lit pas les PDF : colle le texte du cours, ou joins un .pptx/.docx.');
+// Essaie chaque fournisseur de la chaîne jusqu'à ce que l'un réponde. Un fournisseur à sec
+// (quota du jour) ou saturé passe la main au suivant ; la dernière erreur est renvoyée.
+function askModel(array $all, string $system, string $text, ?string $pdf, array $schema, int $maxTokens = 16000): array {
+  $chain = $all['chain'];
+  if ($pdf !== null) {
+    $chain = array_values(array_filter($chain, fn($c) => $c['pdf']));
+    if (!$chain) fail(422, 'Aucun fournisseur d’IA configuré ne lit les PDF : colle le texte du cours, ou joins un .pptx/.docx.');
+  }
+  $last = null;
+  foreach ($chain as $i => $cfg) {
+    try {
+      return askOne($cfg, $system, $text, $pdf, $schema, $maxTokens);
+    } catch (AiUnavailable $e) {
+      error_log("ai: {$cfg['provider']} indisponible (" . $e->getMessage() . ')');
+      $last = $e;
+    }
+  }
+  fail(429, ($last?->getMessage() ?? 'Service d’IA indisponible.') . (count($chain) > 1 ? ' (tous les fournisseurs configurés ont été essayés)' : ''));
+}
+
+// Exception interne : ce fournisseur ne peut pas répondre maintenant, essayer le suivant.
+class AiUnavailable extends RuntimeException {}
+
+function askOne(array $cfg, string $system, string $text, ?string $pdf, array $schema, int $maxTokens = 16000): array {
   switch ($cfg['provider']) {
     case 'anthropic': {
       $content = [];
@@ -295,7 +324,15 @@ switch (action()) {
   case 'status': {
     $cfg = aiConfig();
     ensureUsageTable();
-    ok(['enabled' => (bool) $cfg['key'] && (bool) $cfg['model'], 'provider' => $cfg['provider'], 'model' => $cfg['model'], 'pdf' => $cfg['pdf'], 'limit' => $cfg['limit'], 'used' => usedToday($uid)]);
+    ok([
+      'enabled' => (bool) $cfg['chain'],
+      'providers' => array_map(fn($c) => ['provider' => $c['provider'], 'model' => $c['model']], $cfg['chain']),
+      'provider' => $cfg['chain'][0]['provider'] ?? null,
+      'model' => $cfg['chain'][0]['model'] ?? null,
+      'pdf' => (bool) array_filter($cfg['chain'], fn($c) => $c['pdf']),
+      'limit' => $cfg['limit'],
+      'used' => usedToday($uid),
+    ]);
   }
 
   // Cours (texte et/ou PDF en base64) → cartes de quiz.
@@ -335,33 +372,68 @@ switch (action()) {
     ok(['cards' => array_slice($cards, 0, $count), 'used' => usedToday($uid), 'limit' => $cfg['limit']]);
   }
 
-  // Une question → sa réponse et trois mauvaises réponses (éditeur de leçon).
+  // Une ou plusieurs questions → réponse et trois mauvaises réponses. Plusieurs cartes en un
+  // seul appel : une seule unité de quota, même pour dix cartes.
   case 'suggest': {
     $cfg = aiConfig();
     ensureUsageTable();
     requireQuota($uid, $cfg);
     $in = input();
-    $front = text($in['front'] ?? '', 300);
-    $back = text($in['back'] ?? '', 500);
     $title = text($in['title'] ?? '', 120);
-    if ($front === '') fail(422, 'Écris d’abord la question.');
+    $cards = [];
+    foreach ((array) ($in['cards'] ?? [['front' => $in['front'] ?? '', 'back' => $in['back'] ?? '']]) as $c) {
+      $front = text((string) ($c['front'] ?? ''), 300);
+      if ($front === '') continue;
+      $cards[] = ['front' => $front, 'back' => text((string) ($c['back'] ?? ''), 500)];
+      if (count($cards) === 30) break;
+    }
+    if (!$cards) fail(422, 'Écris d’abord la question.');
+
     $schema = [
       'type' => 'object',
-      'properties' => ['answer' => ['type' => 'string'], 'wrong' => ['type' => 'array', 'items' => ['type' => 'string']]],
-      'required' => ['answer', 'wrong'],
+      'properties' => ['cards' => ['type' => 'array', 'items' => [
+        'type' => 'object',
+        'properties' => ['question' => ['type' => 'string'], 'answer' => ['type' => 'string'], 'wrong' => ['type' => 'array', 'items' => ['type' => 'string']]],
+        'required' => ['question', 'answer', 'wrong'],
+        'additionalProperties' => false,
+      ]]],
+      'required' => ['cards'],
       'additionalProperties' => false,
     ];
-    $system = "Tu aides un étudiant à compléter une carte de révision" . ($title !== '' ? " de la leçon « $title »" : '') . ".\n"
-      . "Réponds dans la langue de la question. La réponse est courte (120 caractères maximum), exacte et précise. "
-      . "Donne exactement trois mauvaises réponses plausibles, du même type et de la même longueur que la bonne, jamais vraies ni synonymes de la bonne réponse.";
-    $ask = $back !== ''
-      ? "Question : $front\nBonne réponse (à garder telle quelle dans « answer ») : $back\nPropose trois mauvaises réponses."
-      : "Question : $front\nDonne la bonne réponse et trois mauvaises réponses.";
-    $data = askModel($cfg, $system, $ask, null, $schema, 2000);
+    $system = 'Tu aides un étudiant à compléter ses cartes de révision' . ($title !== '' ? " de la leçon « $title »" : '') . ".\n"
+      . "Pour chaque carte : reprends la question à l'identique dans « question », donne la bonne réponse dans « answer » "
+      . "(courte, 120 caractères maximum, exacte ; si une réponse est déjà fournie, recopie-la telle quelle) et exactement trois "
+      . "mauvaises réponses plausibles, du même type et de la même longueur que la bonne, jamais vraies ni synonymes. "
+      . 'Réponds dans la langue des questions, et traite toutes les cartes.';
+    $ask = "Complète ces cartes :\n" . implode("\n", array_map(
+      fn($c, $i) => ($i + 1) . '. Question : ' . $c['front'] . ($c['back'] !== '' ? "\n   Bonne réponse (à recopier) : " . $c['back'] : ''),
+      $cards,
+      array_keys($cards),
+    ));
+
+    $data = askModel($cfg, $system, $ask, null, $schema, 800 + 400 * count($cards));
     consume($uid);
-    $card = cleanCard(['question' => $front, 'answer' => $back !== '' ? $back : ($data['answer'] ?? ''), 'wrong' => $data['wrong'] ?? []]);
-    if (!$card) fail(422, 'Pas de proposition pour cette question.');
-    ok(['back' => $card['back'], 'wrong' => $card['wrong'], 'used' => usedToday($uid), 'limit' => $cfg['limit']]);
+    // On rapproche chaque proposition de la carte d'origine (par position, sinon par question).
+    $out = [];
+    $props = array_values(array_filter((array) ($data['cards'] ?? []), 'is_array'));
+    foreach ($cards as $i => $card) {
+      $p = $props[$i] ?? null;
+      if (!$p || mb_strtolower(text((string) ($p['question'] ?? ''), 300)) !== mb_strtolower($card['front'])) {
+        foreach ($props as $cand) {
+          if (mb_strtolower(text((string) ($cand['question'] ?? ''), 300)) === mb_strtolower($card['front'])) {
+            $p = $cand;
+            break;
+          }
+        }
+      }
+      if (!$p) continue;
+      $clean = cleanCard(['question' => $card['front'], 'answer' => $card['back'] !== '' ? $card['back'] : ($p['answer'] ?? ''), 'wrong' => $p['wrong'] ?? []]);
+      if ($clean) $out[] = ['front' => $card['front'], 'back' => $clean['back'], 'wrong' => $clean['wrong']];
+    }
+    if (!$out) fail(422, 'Pas de proposition pour ces questions.');
+    // Compatibilité : une seule carte demandée → même forme qu'avant.
+    $single = !isset($in['cards']);
+    ok(($single ? ['back' => $out[0]['back'], 'wrong' => $out[0]['wrong']] : []) + ['cards' => $out, 'used' => usedToday($uid), 'limit' => $cfg['limit']]);
   }
 
   default:
