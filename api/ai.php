@@ -24,7 +24,8 @@ const PROVIDERS = [
   'gemini' => ['model' => 'gemini-3.6-flash', 'keyEnv' => 'GEMINI_API_KEY', 'pdf' => true],
   'anthropic' => ['model' => 'claude-opus-5', 'keyEnv' => 'ANTHROPIC_API_KEY', 'pdf' => true],
   'mistral' => ['model' => 'mistral-large-latest', 'keyEnv' => 'MISTRAL_API_KEY', 'pdf' => false, 'base' => 'https://api.mistral.ai/v1'],
-  'groq' => ['model' => null, 'keyEnv' => 'GROQ_API_KEY', 'pdf' => false, 'base' => 'https://api.groq.com/openai/v1'],
+  // Groq : modèles ouverts, très rapides, ~1000 requêtes/jour en gratuit (openai/gpt-oss-20b si besoin de plus léger).
+  'groq' => ['model' => 'openai/gpt-oss-120b', 'keyEnv' => 'GROQ_API_KEY', 'pdf' => false, 'base' => 'https://api.groq.com/openai/v1'],
   'openai' => ['model' => null, 'keyEnv' => 'OPENAI_API_KEY', 'pdf' => false, 'base' => 'https://api.openai.com/v1'],
 ];
 
