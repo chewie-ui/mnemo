@@ -101,13 +101,14 @@ function png(size, px) {
   ]);
 }
 
-mkdirSync('public/icons', { recursive: true });
+// « icons » est un alias reserve par Apache sur beaucoup d'hebergements : on utilise app-icons.
+mkdirSync('public/app-icons', { recursive: true });
 for (const [name, size, opts] of [
   ['icon-192.png', 192, {}],
   ['icon-512.png', 512, {}],
   ['icon-maskable-512.png', 512, { bleed: true, padding: 0.1 }],
   ['apple-touch-icon.png', 180, { bleed: true }],
 ]) {
-  writeFileSync(`public/icons/${name}`, png(size, render(size, opts)));
-  console.log('public/icons/' + name);
+  writeFileSync(`public/app-icons/${name}`, png(size, render(size, opts)));
+  console.log('public/app-icons/' + name);
 }
