@@ -10,33 +10,18 @@ const MODE_ICON = { countries: 'map', flags: 'flag', flagpick: 'layout-grid', ca
 const PRIMARY_MODES = new Set(['countries', 'flags', 'flagpick', 'capitals']);
 const expanded = new Set(); // cartes dépliées, conservées d'un rendu à l'autre
 
-// Listes longues affichées par pages, pour éviter d'avoir à faire défiler sans fin.
-const PER_PAGE = 24; // pays en détail (179 pays)
-const HISTORY_PER_PAGE = 8; // cartes historiques
+// « Pays en détail » : 179 pays, affichés par pages pour que la liste reste courte.
+const PER_PAGE = 24;
 let countryPage = 1;
-let historyPage = 1;
 
 const fold = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 export function renderHome() {
   renderCards($('region-grid'), REGIONS);
-  renderHistory(historyPage);
+  renderCards($('history-grid'), HISTORY_REGIONS);
   renderSubdivisions($('country-search').value);
   renderMemosPreview();
   refreshIcons();
-}
-
-// Cartes historiques, page par page (elles sont courtes mais nombreuses).
-function renderHistory(page = historyPage) {
-  const pages = Math.max(1, Math.ceil(HISTORY_REGIONS.length / HISTORY_PER_PAGE));
-  historyPage = Math.min(Math.max(1, page), pages);
-  const start = (historyPage - 1) * HISTORY_PER_PAGE;
-  renderCards($('history-grid'), HISTORY_REGIONS.slice(start, start + HISTORY_PER_PAGE));
-  renderPager($('history-pager'), historyPage, pages, HISTORY_REGIONS.length, 'carte', (p) => {
-    renderHistory(p);
-    refreshIcons();
-    document.getElementById('histoire')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
 }
 
 // Une carte par pays, avec un bouton par découpage (départements, régions…), page par page.
@@ -130,18 +115,18 @@ function renderCards(grid, items, { compact = false } = {}) {
     }
     title.appendChild(document.createTextNode(item.name));
     card.appendChild(title);
+    // Toujours présent (vide si la carte n'a pas de sous-titre) : les trois rangées d'une carte
+    // s'alignent ainsi sur celles des cartes voisines (voir .region-card en CSS).
+    const sub = document.createElement('p');
+    sub.className = 'subtitle';
+    sub.textContent = item.subtitle ?? '';
+    card.appendChild(sub);
     const list = document.createElement('div');
     list.className = 'mode-list';
     if (compact) {
       // Groupe de cartes d'un même pays : un bouton par découpage, mode unique.
       for (const region of item.maps) list.appendChild(modeButton(region, 'countries', 'map'));
     } else {
-      if (item.subtitle) {
-        const sub = document.createElement('p');
-        sub.className = 'subtitle';
-        sub.textContent = item.subtitle;
-        card.appendChild(sub);
-      }
       const modes = MODES.filter((mode) => targetsFor(item, mode).length > 0);
       const secondary = modes.filter((mode) => !PRIMARY_MODES.has(mode));
       for (const mode of modes) {

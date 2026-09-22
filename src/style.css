@@ -472,15 +472,23 @@ p {
 }
 
 .region-card .subtitle {
-  margin-top: -8px;
   font-size: 14px;
   color: var(--text-muted);
+  margin: 0;
 }
 
+.region-card .subtitle:empty {
+  display: none;
+}
+
+/* Titre, sous-titre et boutons occupent les mêmes rangées que les cartes voisines :
+   tout est aligné d'une carte à l'autre, même avec des titres de longueurs différentes. */
 .region-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 3;
+  align-content: start;
+  row-gap: 8px;
   padding: 20px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -493,6 +501,23 @@ p {
   font-weight: 700;
 }
 
+/* Navigateurs sans subgrid : on réserve deux lignes pour le titre et le sous-titre. */
+@supports not (grid-template-rows: subgrid) {
+  .region-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .region-card .name {
+    min-height: 2.4em;
+  }
+
+  .region-card .subtitle:not(:empty) {
+    min-height: 3em;
+  }
+}
+
 /* Un bouton par mode : icône, nom, nombre de cibles, meilleur score. */
 .mode-list {
   display: flex;
@@ -503,7 +528,7 @@ p {
 .mode-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-height: 44px;
   padding: 0 12px;
   border-radius: 8px;
@@ -533,13 +558,19 @@ p {
 
 .mode-btn .lucide {
   color: var(--accent);
+  flex-shrink: 0;
 }
 
+/* min-width: 0 sinon un libellé long (« Départements ») refuse de rétrécir et
+   pousse le compteur et le score hors du bouton. */
 .mode-name {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .mode-count {
+  flex-shrink: 0;
   font-size: 14px;
   font-weight: 500;
   color: var(--text-muted);
@@ -547,6 +578,7 @@ p {
 }
 
 .mode-best {
+  flex-shrink: 0;
   min-width: 40px;
   text-align: right;
   font-size: 14px;
@@ -1300,7 +1332,7 @@ p {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  margin-top: 8px;
+  margin: 8px 0 24px;
 }
 
 .stat {
@@ -1609,7 +1641,7 @@ p {
 
 .password-form h3 {
   font-size: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .password-form .note {
@@ -1641,6 +1673,14 @@ p {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0 16px;
+}
+
+/* Les champs ont déjà leur marge basse ; un bouton ou un titre qui suit, non. */
+.password-grid + .btn,
+.password-grid + .deck-footer,
+.password-grid + .hero-actions,
+.password-grid + .field {
+  margin-top: 8px;
 }
 
 @media (max-width: 640px) {
@@ -2009,8 +2049,8 @@ p {
 }
 
 .cards-title {
-  margin-top: 16px;
-  margin-bottom: 4px;
+  margin-top: 24px;
+  margin-bottom: 8px;
 }
 
 .card-rows {
@@ -2285,7 +2325,7 @@ p {
 }
 
 .stats-section {
-  margin-bottom: 12px;
+  margin: 8px 0 12px;
 }
 
 /* ─── Toast ─── */
@@ -3667,8 +3707,14 @@ p {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 16px;
+  gap: 8px;
+  /* La grille qui précède garde son espace propre : ici on sépare surtout de la section suivante. */
+  margin: 0 0 40px;
+}
+
+/* Quand une pagination suit une grille, la grille laisse juste ce qu'il faut au-dessus. */
+.region-grid:has(+ .pager) {
+  padding-bottom: 16px;
 }
 
 .pager-btn {
