@@ -10,13 +10,15 @@ declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 
 $uid = requireUser();
+// Une génération peut prendre une à deux minutes (lecture du cours + retentatives).
+set_time_limit(300);
 
 const AI_MAX_TEXT = 120000; // caractères de cours acceptés par génération
 const AI_MAX_PDF = 12 * 1024 * 1024; // octets (base64 décodé)
 
 // Fournisseurs : modèle par défaut, clé attendue, lecture des PDF, adresse « compatible OpenAI ».
 const PROVIDERS = [
-  'gemini' => ['model' => 'gemini-3.8-flash', 'keyEnv' => 'GEMINI_API_KEY', 'pdf' => true],
+  'gemini' => ['model' => 'gemini-3.6-flash', 'keyEnv' => 'GEMINI_API_KEY', 'pdf' => true],
   'anthropic' => ['model' => 'claude-opus-5', 'keyEnv' => 'ANTHROPIC_API_KEY', 'pdf' => true],
   'mistral' => ['model' => 'mistral-large-latest', 'keyEnv' => 'MISTRAL_API_KEY', 'pdf' => false, 'base' => 'https://api.mistral.ai/v1'],
   'groq' => ['model' => null, 'keyEnv' => 'GROQ_API_KEY', 'pdf' => false, 'base' => 'https://api.groq.com/openai/v1'],
@@ -41,9 +43,11 @@ function aiConfig(): array {
     'provider' => $provider,
     'key' => $env('AI_API_KEY', $env($p['keyEnv'])),
     'model' => $env('AI_MODEL', $p['model']),
+    // Modèle de secours si le premier est saturé (503) ou limité (429) après quelques essais.
+    'fallback' => $env('AI_FALLBACK_MODEL', $provider === 'gemini' ? 'gemini-3.8-flash' : null),
     'base' => rtrim($env('AI_BASE_URL', $p['base'] ?? '') ?? '', '/'),
     'pdf' => $p['pdf'],
-    'limit' => max(1, (int) $env('AI_DAILY_LIMIT', '40')),
+    'limit' => max(1, (int) $env('AI_DAILY_LIMIT', '20')),
     'cainfo' => $env('CA_BUNDLE'),
   ];
 }
@@ -76,7 +80,36 @@ function requireQuota(int $uid, array $cfg): void {
 }
 
 // Requête HTTP JSON vers un fournisseur ; renvoie [statut, corps décodé, corps brut].
-function httpJson(array $cfg, string $url, array $headers, array $payload): array {
+// Sur 429/503 (saturation), on réessaie deux fois en attendant un peu, puis on bascule sur le
+// modèle de secours s'il y en a un. $swap(modèle) adapte la requête au modèle de repli.
+function httpJson(array $cfg, string $url, array $headers, array $payload, ?callable $swap = null): array {
+  // Les offres gratuites sont souvent saturées (503) ou limitées à quelques requêtes par minute
+  // (429) : on alterne entre le modèle demandé et le modèle de secours, avec des pauses qui
+  // s'allongent, pendant une minute environ.
+  $primary = [$url, $payload];
+  $alt = ($cfg['fallback'] && $swap && $cfg['fallback'] !== $cfg['model']) ? $swap($cfg['fallback']) : null;
+  $waits = [0, 1, 3, 6, 12, 20, 30]; // pause avant chaque essai
+  $last = null;
+  $exhausted = []; // modèles dont le quota du jour est épuisé : inutile d'y revenir
+  foreach ($waits as $i => $wait) {
+    if ($wait) sleep($wait);
+    $useAlt = $alt && ($i % 2 === 1 || in_array('primary', $exhausted, true));
+    if ($useAlt && in_array('alt', $exhausted, true)) $useAlt = false;
+    [$u, $p] = $useAlt ? $alt : $primary;
+    $last = httpOnce($cfg, $u, $headers, $p);
+    if ($last[0] !== 429 && $last[0] !== 503) return $last;
+    $msg = is_array($last[1]) ? ($last[1]['error']['message'] ?? '') : '';
+    if ($last[0] === 429 && stripos($msg, 'PerDay') !== false) {
+      $exhausted[] = $useAlt ? 'alt' : 'primary';
+      // Les deux modèles sont à sec pour aujourd'hui : inutile d'attendre.
+      if (!$alt || count(array_unique($exhausted)) === 2) return $last;
+    }
+    error_log("ai: HTTP {$last[0]} (essai " . ($i + 1) . '/' . count($waits) . ')');
+  }
+  return $last;
+}
+
+function httpOnce(array $cfg, string $url, array $headers, array $payload): array {
   $ch = curl_init($url);
   curl_setopt_array($ch, [
     CURLOPT_POST => true,
@@ -104,7 +137,10 @@ function checkStatus(int $status, mixed $res, string $raw): void {
   // Google renvoie un 400 pour une clé invalide, les autres un 401/403.
   if ($status === 401 || $status === 403 || ($status === 400 && $msg && stripos($msg, 'api key') !== false)) fail(503, 'Clé d’API IA refusée : vérifie la clé dans le .env.');
   if ($status === 404) fail(503, 'Modèle IA introuvable chez ce fournisseur : vérifie AI_MODEL.' . ($msg ? " ($msg)" : ''));
-  if ($status === 429) fail(429, 'L’IA est saturée ou la limite gratuite est atteinte : réessaie dans une minute.');
+  if ($status === 429 && $msg && stripos($msg, 'PerDay') !== false) {
+    fail(429, 'Quota gratuit de Google épuisé pour aujourd’hui (20 générations par jour et par modèle). Réessaie demain, change AI_MODEL, ou active la facturation dans Google AI Studio.');
+  }
+  if ($status === 429 || $status === 503) fail(429, 'Le service d’IA gratuit est saturé en ce moment (ou sa limite de quelques requêtes par minute est atteinte). Réessaie dans une minute ou deux.');
   if ($status >= 400 || !is_array($res)) {
     error_log('ai: HTTP ' . $status . ' ' . substr($raw, 0, 500));
     fail(502, 'L’IA a renvoyé une erreur (' . ($msg ?? "HTTP $status") . ').');
@@ -137,13 +173,15 @@ function askModel(array $cfg, string $system, string $text, ?string $pdf, array 
       $content = [];
       if ($pdf !== null) $content[] = ['type' => 'document', 'source' => ['type' => 'base64', 'media_type' => 'application/pdf', 'data' => $pdf]];
       $content[] = ['type' => 'text', 'text' => $text];
-      [$status, $res, $raw] = httpJson($cfg, 'https://api.anthropic.com/v1/messages', ['x-api-key: ' . $cfg['key'], 'anthropic-version: 2023-06-01'], [
+      $payload = [
         'model' => $cfg['model'],
         'max_tokens' => $maxTokens,
         'system' => $system,
         'messages' => [['role' => 'user', 'content' => $content]],
         'output_config' => ['effort' => 'medium', 'format' => ['type' => 'json_schema', 'schema' => $schema]],
-      ]);
+      ];
+      $url = 'https://api.anthropic.com/v1/messages';
+      [$status, $res, $raw] = httpJson($cfg, $url, ['x-api-key: ' . $cfg['key'], 'anthropic-version: 2023-06-01'], $payload, fn($m) => [$url, ['model' => $m] + $payload]);
       checkStatus($status, $res, $raw);
       if (($res['stop_reason'] ?? '') === 'refusal') fail(422, 'L’IA a refusé ce contenu.');
       if (($res['stop_reason'] ?? '') === 'max_tokens') fail(422, 'Cours trop long pour une seule génération : découpe-le ou demande moins de questions.');
@@ -156,12 +194,13 @@ function askModel(array $cfg, string $system, string $text, ?string $pdf, array 
       $parts = [];
       if ($pdf !== null) $parts[] = ['inlineData' => ['mimeType' => 'application/pdf', 'data' => $pdf]];
       $parts[] = ['text' => $text];
-      $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($cfg['model']) . ':generateContent';
-      [$status, $res, $raw] = httpJson($cfg, $url, ['x-goog-api-key: ' . $cfg['key']], [
+      $geminiUrl = fn(string $m) => 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($m) . ':generateContent';
+      $payload = [
         'systemInstruction' => ['parts' => [['text' => $system]]],
         'contents' => [['role' => 'user', 'parts' => $parts]],
         'generationConfig' => ['responseMimeType' => 'application/json', 'responseJsonSchema' => stripSchema($schema), 'maxOutputTokens' => $maxTokens],
-      ]);
+      ];
+      [$status, $res, $raw] = httpJson($cfg, $geminiUrl($cfg['model']), ['x-goog-api-key: ' . $cfg['key']], $payload, fn($m) => [$geminiUrl($m), $payload]);
       checkStatus($status, $res, $raw);
       if (!empty($res['promptFeedback']['blockReason'])) fail(422, 'L’IA a refusé ce contenu.');
       $cand = $res['candidates'][0] ?? null;
@@ -176,7 +215,7 @@ function askModel(array $cfg, string $system, string $text, ?string $pdf, array 
 
     // Mistral, Groq, OpenAI et tout service au même format « chat/completions ».
     default: {
-      [$status, $res, $raw] = httpJson($cfg, $cfg['base'] . '/chat/completions', ['Authorization: Bearer ' . $cfg['key']], [
+      $payload = [
         'model' => $cfg['model'],
         'max_tokens' => $maxTokens,
         'messages' => [
@@ -184,7 +223,9 @@ function askModel(array $cfg, string $system, string $text, ?string $pdf, array 
           ['role' => 'user', 'content' => $text],
         ],
         'response_format' => ['type' => 'json_object'],
-      ]);
+      ];
+      $url = $cfg['base'] . '/chat/completions';
+      [$status, $res, $raw] = httpJson($cfg, $url, ['Authorization: Bearer ' . $cfg['key']], $payload, fn($m) => [$url, ['model' => $m] + $payload]);
       checkStatus($status, $res, $raw);
       $choice = $res['choices'][0] ?? null;
       if (!$choice) fail(502, 'Réponse de l’IA vide.');
