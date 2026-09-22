@@ -119,6 +119,7 @@ export function initAi() {
     $('ai-progress').hidden = false;
     try {
       const res = await post('ai', 'generate', { text, pdf: source.pdf, title: $('ai-title').value.trim(), count: Number($('ai-count').value) });
+      status = { ...status, used: res.used, limit: res.limit };
       generated = res.cards;
       status = { ...status, enabled: true, used: res.used, limit: res.limit };
       $('ai-quota').textContent = `${res.limit - res.used} génération${res.limit - res.used > 1 ? 's' : ''} restante${res.limit - res.used > 1 ? 's' : ''} aujourd’hui.`;

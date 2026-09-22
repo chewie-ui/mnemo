@@ -10,8 +10,11 @@ declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 
 $uid = requireUser();
-// Une génération peut prendre une à deux minutes (lecture du cours + retentatives).
+// Une génération peut prendre une minute (lecture du cours + retentatives).
 set_time_limit(300);
+// On libère tout de suite la session : sinon PHP la verrouille et TOUTES les autres requêtes de
+// l'utilisateur (navigation, révisions, notifications) attendent la fin de l'appel à l'IA.
+session_write_close();
 
 const AI_MAX_TEXT = 120000; // caractères de cours acceptés par génération
 const AI_MAX_PDF = 12 * 1024 * 1024; // octets (base64 décodé)
@@ -88,7 +91,9 @@ function httpJson(array $cfg, string $url, array $headers, array $payload, ?call
   // s'allongent, pendant une minute environ.
   $primary = [$url, $payload];
   $alt = ($cfg['fallback'] && $swap && $cfg['fallback'] !== $cfg['model']) ? $swap($cfg['fallback']) : null;
-  $waits = [0, 1, 3, 6, 12, 20, 30]; // pause avant chaque essai
+  // On reste court : quelqu'un attend devant son écran. Deux modèles, trois essais, ~7 s de pause
+  // au maximum ; au-delà on rend la main avec un message clair plutôt que de faire patienter.
+  $waits = [0, 2, 5];
   $last = null;
   $exhausted = []; // modèles dont le quota du jour est épuisé : inutile d'y revenir
   foreach ($waits as $i => $wait) {

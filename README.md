@@ -12,7 +12,7 @@ Une section **Histoire** propose les États d'une époque (Europe et Monde en 19
 
 ```bash
 npm install
-npm run dev    # site sur http://localhost:5173 + API PHP sur 127.0.0.1:8080 (SQLite, rien à configurer)
+npm run dev    # site sur http://localhost:5173 + API PHP sur 127.0.0.1:8080 et 8081 (IA) — SQLite, rien à configurer
                # (npm run web : Vite seul ; npm run api : PHP seul)
 ```
 
