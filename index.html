@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Mnemo" />
+    <meta name="description" content="Apprends en jouant : géographie, histoire, pays en détail, et tes propres leçons en cartes mémo." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ffffff" />
+    <script>
+      // Thème posé avant le premier rendu pour éviter un flash blanc (réglage dans Réglages).
+      try {
+        var t = localStorage.getItem('mnemo:theme');
+        if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+    <title>Mnemo — Apprendre en jouant</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <script type="module" crossorigin src="./assets/index-BsxUuvgr.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CXkaAWq8.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner container">
+      <a class="brand" href="#/" aria-label="Accueil Mnemo">
+        <i data-lucide="globe" aria-hidden="true"></i>
+        <span>Mnemo</span>
+      </a>
+      <nav class="topnav" aria-label="Sections">
+        <a href="#/campagne">Campagne</a>
+        <a href="#/#geo">Géographie</a>
+        <a href="#/#histoire">Histoire</a>
+        <a href="#/#pays">Pays en détail</a>
+        <a href="#/memos">Mes cours</a>
+        <a href="#/amis">Amis <span id="nav-badge" class="badge nav-badge" data-nav-badge hidden>0</span></a>
+      </nav>
+      <div class="user-area">
+        <a class="btn btn-ghost btn-icon settings-btn" href="#/reglages" aria-label="Réglages" title="Réglages"><i data-lucide="settings" aria-hidden="true"></i></a>
+        <button id="user-btn" class="btn btn-ghost user-btn" type="button" aria-haspopup="menu" aria-expanded="false">
+          <span id="user-avatar"><i data-lucide="circle-user-round" aria-hidden="true"></i></span>
+          <span id="user-label">Se connecter</span>
+        </button>
+        <div id="user-menu" class="menu" role="menu" hidden>
+          <a class="menu-item" role="menuitem" href="#/stats"><i data-lucide="bar-chart-3" aria-hidden="true"></i><span>Mes stats</span></a>
+          <a class="menu-item" role="menuitem" href="#/memos"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Mes cours</span></a>
+          <a class="menu-item" role="menuitem" href="#/amis"><i data-lucide="users" aria-hidden="true"></i><span>Amis et défis</span></a>
+          <a class="menu-item" role="menuitem" href="#/reglages"><i data-lucide="settings" aria-hidden="true"></i><span>Réglages</span></a>
+          <button id="logout-btn" class="menu-item" role="menuitem" type="button"><i data-lucide="log-out" aria-hidden="true"></i><span>Se déconnecter</span></button>
+        </div>
+      </div>
+      </div>
+    </header>
+
+    <!-- Accueil -->
+    <main id="screen-home" class="screen container">
+      <section class="hero">
+        <h1>Apprends en jouant</h1>
+        <p class="lead">Des cartes muettes pour la géographie et l'histoire, et tes propres leçons en cartes mémo. Trois essais par question, un chrono, et tes progrès enregistrés.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#/campagne"><i data-lucide="play" aria-hidden="true"></i><span>Commencer la campagne</span></a>
+          <a class="btn btn-ghost" href="#/#geo"><i data-lucide="globe" aria-hidden="true"></i><span>Jouer une carte libre</span></a>
+          <a class="btn btn-ghost" href="#/memos"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Mes cours</span></a>
+        </div>
+      </section>
+
+      <h2 id="geo" class="section-title"><i data-lucide="globe" aria-hidden="true"></i><span>Géographie</span></h2>
+      <p class="section-note">Pays, drapeaux, capitales, grandes villes, fleuves, mers et océans — sur chaque carte.</p>
+      <div id="region-grid" class="region-grid" role="list"></div>
+
+      <h2 id="histoire" class="section-title"><i data-lucide="landmark" aria-hidden="true"></i><span>Histoire</span></h2>
+      <p class="section-note">Les États tels qu'ils étaient à une époque donnée. Frontières approximatives (source : historical-basemaps), pour apprendre, pas pour trancher un débat.</p>
+      <div id="history-grid" class="region-grid" role="list"></div>
+
+      <h2 id="pays" class="section-title"><i data-lucide="map-pinned" aria-hidden="true"></i><span>Pays en détail</span></h2>
+      <p class="section-note">États, provinces, départements, cantons… de plus de 170 pays. Tape un nom de pays pour filtrer.</p>
+      <div class="search">
+        <label for="country-search" class="visually-hidden">Rechercher un pays</label>
+        <i data-lucide="search" aria-hidden="true"></i>
+        <input id="country-search" type="search" placeholder="Rechercher un pays (Brésil, Belgique, Japon…)" autocomplete="off" />
+      </div>
+      <div id="subdivision-grid" class="region-grid region-grid-compact" role="list"></div>
+      <nav id="subdivision-pager" class="pager" aria-label="Pages de pays" hidden></nav>
+      <p id="subdivision-empty" class="empty" hidden>Aucun pays ne correspond.</p>
+
+      <h2 id="memos" class="section-title"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Mes cours</span></h2>
+      <p class="section-note">Tes propres leçons : une définition, une date, un article de loi… en cartes question → réponse, révisées au bon moment.</p>
+      <div id="home-memos" class="region-grid" role="list"></div>
+
+      <footer class="sources">
+        <p>Données cartographiques : <a href="https://www.naturalearthdata.com/" rel="noopener">Natural Earth</a> (domaine public) pour les pays, subdivisions, fleuves, mers et océans ; <a href="https://github.com/aourednik/historical-basemaps" rel="noopener">historical-basemaps</a> (GPL-3.0) pour les frontières historiques ; <a href="https://github.com/lipis/flag-icons" rel="noopener">flag-icons</a> (MIT) pour les drapeaux.</p>
+      </footer>
+    </main>
+
+    <!-- Partie en cours -->
+    <main id="screen-game" class="screen game" hidden>
+      <div class="game-bar">
+        <button id="btn-quit" class="btn btn-ghost" type="button" aria-label="Quitter la partie">
+          <i data-lucide="arrow-left" aria-hidden="true"></i>
+          <span>Quitter</span>
+        </button>
+        <div class="prompt" aria-live="polite">
+          <span id="hud-level" class="level-tag" hidden></span>
+          <span class="prompt-label">Trouve</span>
+          <img id="prompt-flag" class="prompt-flag" alt="Drapeau à retrouver" hidden />
+          <strong id="prompt-name">…</strong>
+          <span id="feedback" class="feedback" role="status"></span>
+        </div>
+        <label class="switch" title="Le clic surligne la zone, puis tu valides">
+          <input id="confirm-toggle" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-label">Confirmer</span>
+        </label>
+        <dl class="hud">
+          <div id="hud-rival" class="hud-rival" hidden><dt id="hud-rival-name">Adversaire</dt><dd id="hud-rival-progress">—</dd></div>
+          <div><dt>Progression</dt><dd id="hud-progress">0 / 0</dd></div>
+          <div><dt>Erreurs</dt><dd id="hud-errors">0</dd></div>
+          <div><dt>Temps</dt><dd id="hud-time">0:00</dd></div>
+        </dl>
+      </div>
+
+      <div class="map-wrap">
+        <div id="map-loading" class="map-loading" role="status">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Chargement de la carte…</span>
+        </div>
+        <svg id="map" class="map" role="img" aria-label="Carte muette"></svg>
+        <div id="flag-grid" class="flag-grid" role="group" aria-label="Drapeaux" hidden></div>
+        <div id="map-tip" class="map-tip" role="status" hidden></div>
+        <div id="map-prompt" class="map-prompt" aria-hidden="true" hidden>
+          <span class="map-prompt-label">Trouve</span>
+          <img id="map-prompt-flag" class="prompt-flag" alt="" hidden />
+          <strong id="map-prompt-name"></strong>
+        </div>
+        <div id="confirm-bar" class="confirm-bar" hidden>
+          <button id="confirm-ok" class="btn btn-primary" type="button"><i data-lucide="check" aria-hidden="true"></i><span>Valider</span></button>
+          <button id="confirm-cancel" class="btn btn-ghost" type="button">Annuler</button>
+        </div>
+        <div id="zoom-controls" class="zoom-controls">
+          <button id="zoom-in" class="btn btn-icon" type="button" aria-label="Zoomer"><i data-lucide="plus" aria-hidden="true"></i></button>
+          <button id="zoom-out" class="btn btn-icon" type="button" aria-label="Dézoomer"><i data-lucide="minus" aria-hidden="true"></i></button>
+          <button id="zoom-reset" class="btn btn-icon" type="button" aria-label="Réinitialiser le zoom"><i data-lucide="maximize" aria-hidden="true"></i></button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Mes stats -->
+    <main id="screen-stats" class="screen container page" hidden>
+      <div class="page-head">
+        <a class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1>Mes stats</h1>
+      </div>
+      <div id="stats-body"></div>
+    </main>
+
+    <!-- Mes mémos : liste des leçons -->
+    <main id="screen-memos" class="screen container page" hidden>
+      <div class="page-head">
+        <a id="memos-back" class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1 id="memos-title">Mes cours</h1>
+      </div>
+      <nav id="memos-crumbs" class="crumbs" aria-label="Chemin"></nav>
+      <div class="library-actions">
+        <button id="lib-new-folder" class="btn btn-ghost" type="button"><i data-lucide="folder-plus" aria-hidden="true"></i><span>Dossier</span></button>
+        <a id="lib-new-deck" class="btn btn-primary" href="#/memos/new"><i data-lucide="plus" aria-hidden="true"></i><span>Leçon</span></a>
+        <a id="lib-new-note" class="btn btn-ghost" href="#/notes/new"><i data-lucide="file-plus-2" aria-hidden="true"></i><span>Note</span></a>
+        <a id="lib-new-ai" class="btn btn-ghost btn-ai" href="#/memos/ai"><i data-lucide="sparkles" aria-hidden="true"></i><span>Leçon avec l’IA</span></a>
+      </div>
+      <p id="memos-note" class="note" hidden></p>
+      <div id="library-body"></div>
+    </main>
+
+    <!-- Génération d'une leçon par l'IA -->
+    <main id="screen-ai" class="screen container page" hidden>
+      <div class="page-head">
+        <a id="ai-back" class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Mes cours</span></a>
+        <h1>Leçon avec l’IA</h1>
+      </div>
+      <p id="ai-unavailable" class="note" hidden></p>
+      <form id="ai-form" class="deck-form" novalidate>
+        <p class="note">Colle ta synthèse ou joins ton cours (PowerPoint, Word, PDF, texte) : l’IA en tire des questions avec la bonne réponse et trois mauvaises pour le QCM. Tu relis, tu retires ce qui ne va pas, et la leçon est prête.</p>
+        <div class="password-grid">
+          <div class="field">
+            <label for="ai-title">Titre de la leçon <span class="muted">(facultatif)</span></label>
+            <input id="ai-title" type="text" maxlength="120" placeholder="Chapitre 3 — Le mix marketing" />
+          </div>
+          <div class="field">
+            <label for="ai-folder">Dossier</label>
+            <select id="ai-folder"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="ai-file">Fichier du cours</label>
+          <div class="file-row">
+            <label class="btn btn-ghost" for="ai-file"><i data-lucide="upload" aria-hidden="true"></i><span>Choisir un fichier</span></label>
+            <input id="ai-file" type="file" accept=".pdf,.pptx,.docx,.txt,.md,application/pdf,text/plain" class="sr-only" />
+            <span id="ai-file-label" class="muted small">Aucun fichier</span>
+          </div>
+          <p id="ai-file-hint" class="note small">PowerPoint (.pptx), Word (.docx), PDF (12 Mo max), texte. Les anciens .ppt/.doc doivent être enregistrés au format récent.</p>
+        </div>
+        <div class="field">
+          <label for="ai-text">Ou colle le cours ici</label>
+          <textarea id="ai-text" class="note-textarea" rows="8" placeholder="Colle ta synthèse, tes notes, le contenu de tes slides…"></textarea>
+        </div>
+        <div class="field ai-count-field">
+          <label for="ai-count">Nombre de questions</label>
+          <select id="ai-count">
+            <option value="10">10</option>
+            <option value="15" selected>15</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+          </select>
+        </div>
+        <p id="ai-error" class="form-error" role="alert" hidden></p>
+        <div class="deck-footer">
+          <button id="ai-generate" class="btn btn-primary" type="submit"><i data-lucide="sparkles" aria-hidden="true"></i><span>Générer le quiz</span></button>
+          <span id="ai-quota" class="muted small"></span>
+        </div>
+        <p id="ai-progress" class="note" hidden><span class="spinner spinner-dark" aria-hidden="true"></span> L’IA lit ton cours et rédige les questions… (30 secondes à 2 minutes selon la longueur)</p>
+      </form>
+      <section id="ai-result" class="ai-result" hidden>
+        <h2>Cartes proposées</h2>
+        <p id="ai-count-label" class="note"></p>
+        <ul id="ai-cards" class="ai-cards"></ul>
+        <div class="deck-footer">
+          <button id="ai-save" class="btn btn-primary" type="button"><i data-lucide="check" aria-hidden="true"></i><span>Créer la leçon</span></button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Lecture d'une note de cours -->
+    <main id="screen-note" class="screen container page" hidden>
+      <div class="page-head">
+        <a id="note-back" class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Mes cours</span></a>
+        <h1 id="note-title">Note</h1>
+        <div class="page-action note-actions">
+          <button id="note-to-deck" class="btn btn-primary" type="button"><i data-lucide="wand-sparkles" aria-hidden="true"></i><span>En faire une leçon</span></button>
+          <a id="note-edit" class="btn btn-ghost" href="#/memos"><i data-lucide="pencil" aria-hidden="true"></i><span>Modifier</span></a>
+        </div>
+      </div>
+      <p id="note-meta" class="muted small"></p>
+      <article id="note-body" class="note-article"></article>
+    </main>
+
+    <!-- Édition d'une note de cours -->
+    <main id="screen-note-edit" class="screen container page" hidden>
+      <div class="page-head">
+        <a id="note-editor-back" class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Retour</span></a>
+        <h1 id="note-editor-heading">Nouvelle note</h1>
+      </div>
+      <form id="note-form" class="deck-form" novalidate>
+        <div class="password-grid">
+          <div class="field">
+            <label for="note-title-input">Titre</label>
+            <input id="note-title-input" type="text" maxlength="160" placeholder="Chapitre 2 — Le mix marketing" required />
+          </div>
+          <div class="field">
+            <label for="note-folder">Dossier</label>
+            <select id="note-folder"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="note-text">Contenu</label>
+          <textarea id="note-text" class="note-textarea" rows="12" placeholder="Écris ton cours ici…&#10;&#10;# Un titre&#10;- une liste&#10;**important**, *nuance*, ==à retenir=="></textarea>
+          <p class="note small">Mise en forme : <code># Titre</code>, <code>## Sous-titre</code>, <code>- liste</code>, <code>1. liste numérotée</code>, <code>**gras**</code>, <code>*italique*</code>, <code>==surligné==</code>, <code>&gt; citation</code>, <code>---</code> pour une ligne.</p>
+        </div>
+        <p id="note-error" class="form-error" role="alert" hidden></p>
+        <div class="deck-footer">
+          <button id="note-save" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Enregistrer</span></button>
+          <button id="note-delete" class="btn btn-ghost btn-danger" type="button" hidden><i data-lucide="trash-2" aria-hidden="true"></i><span>Supprimer la note</span></button>
+        </div>
+      </form>
+    </main>
+
+    <!-- Éditeur de leçon -->
+    <main id="screen-deck" class="screen container page" hidden>
+      <div class="page-head">
+        <a id="deck-back" class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Mes cours</span></a>
+        <h1 id="deck-heading">Nouvelle leçon</h1>
+      </div>
+      <form id="deck-form" class="deck-form" novalidate>
+        <div class="field">
+          <label for="deck-title">Titre</label>
+          <input id="deck-title" type="text" maxlength="120" required placeholder="Droit civil — définitions" />
+        </div>
+        <div class="password-grid">
+          <div class="field">
+            <label for="deck-description">Description <span class="muted">(facultatif)</span></label>
+            <input id="deck-description" type="text" maxlength="500" placeholder="Chapitre 3, à savoir pour le partiel" />
+          </div>
+          <div class="field">
+            <label for="deck-folder">Dossier</label>
+            <select id="deck-folder"></select>
+          </div>
+        </div>
+        <h2 class="cards-title">Cartes <span id="deck-count" class="muted"></span></h2>
+        <p class="note">À gauche la question (ou le terme), à droite la réponse (ou la définition). Les cartes vides sont ignorées. Pour un vrai QCM, ajoute des mauvaises réponses à une carte.</p>
+        <div class="deck-actions deck-ai-row">
+          <button id="deck-ai-all" class="btn btn-ghost btn-ai" type="button" hidden><i data-lucide="sparkles" aria-hidden="true"></i><span>Compléter toutes les cartes avec l’IA</span></button>
+          <span id="deck-ai-quota" class="muted small"></span>
+        </div>
+        <div id="deck-cards" class="card-rows"></div>
+        <div class="deck-actions">
+          <button id="deck-add" class="btn btn-ghost" type="button"><i data-lucide="plus" aria-hidden="true"></i><span>Ajouter une carte</span></button>
+        </div>
+        <p id="deck-error" class="form-error" role="alert" hidden></p>
+        <div class="deck-footer">
+          <button id="deck-save" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Enregistrer</span></button>
+          <button id="deck-delete" class="btn btn-danger" type="button" hidden><i data-lucide="trash-2" aria-hidden="true"></i><span>Supprimer la leçon</span></button>
+        </div>
+      </form>
+    </main>
+
+    <!-- Révision (cartes) et quiz (QCM) -->
+    <main id="screen-study" class="screen container page study" hidden>
+      <div class="page-head">
+        <a id="study-back" class="btn btn-ghost" href="#/memos"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Mes cours</span></a>
+        <h1 id="study-title">Révision</h1>
+        <span id="study-progress" class="study-progress muted"></span>
+      </div>
+      <div id="study-body"></div>
+    </main>
+
+    <!-- Campagne -->
+    <main id="screen-campaign" class="screen container page" hidden>
+      <div class="page-head">
+        <a class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1>Campagne</h1>
+      </div>
+      <p class="note">Des niveaux courts, du plus simple au plus complet. 1 étoile = niveau réussi (70 % du premier coup), 2 étoiles = 90 %, 3 étoiles = sans faute. Chaque étoile rapporte des trophées, et un chapitre complet débloque un badge.</p>
+      <div id="campaign-body"></div>
+    </main>
+
+    <!-- Défi : invitation, attente, écran VS -->
+    <main id="screen-duel" class="screen container page" hidden>
+      <div id="duel-body"></div>
+    </main>
+
+    <!-- Confirmation d'une nouvelle adresse e-mail (lien reçu) -->
+    <main id="screen-confirm" class="screen container page" hidden>
+      <div class="page-head">
+        <a class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1>Nouvelle adresse e-mail</h1>
+      </div>
+      <div id="confirm-body" class="reset-form"></div>
+    </main>
+
+    <!-- Nouveau mot de passe (lien reçu par e-mail) -->
+    <main id="screen-reset" class="screen container page" hidden>
+      <div class="page-head">
+        <a class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1>Nouveau mot de passe</h1>
+      </div>
+      <form id="reset-form" class="auth-form reset-form" novalidate>
+        <p class="note">Choisis un nouveau mot de passe pour ton compte. Tu seras connecté dans la foulée.</p>
+        <div class="field">
+          <label for="reset-password">Nouveau mot de passe <span class="muted">(8 caractères minimum)</span></label>
+          <input id="reset-password" type="password" autocomplete="new-password" required minlength="8" />
+        </div>
+        <div class="field">
+          <label for="reset-confirm">Confirme le mot de passe</label>
+          <input id="reset-confirm" type="password" autocomplete="new-password" required minlength="8" />
+        </div>
+        <p id="reset-error" class="form-error" role="alert" hidden></p>
+        <button id="reset-submit" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Enregistrer et me connecter</span></button>
+      </form>
+    </main>
+
+    <!-- Réglages -->
+    <main id="screen-settings" class="screen container page" hidden>
+      <div class="page-head">
+        <a class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1>Réglages</h1>
+      </div>
+      <div class="settings">
+        <section class="settings-section">
+          <h2>Apparence</h2>
+          <p class="note">Le thème est gardé sur cet appareil.</p>
+          <fieldset class="theme-picker">
+            <legend class="sr-only">Thème</legend>
+            <label class="theme-option">
+              <input type="radio" name="theme" value="system" />
+              <span class="theme-card"><i data-lucide="monitor" aria-hidden="true"></i><span>Système</span><small>Suit ton appareil</small></span>
+            </label>
+            <label class="theme-option">
+              <input type="radio" name="theme" value="light" />
+              <span class="theme-card"><i data-lucide="sun" aria-hidden="true"></i><span>Clair</span><small>Fond blanc</small></span>
+            </label>
+            <label class="theme-option">
+              <input type="radio" name="theme" value="dark" />
+              <span class="theme-card"><i data-lucide="moon" aria-hidden="true"></i><span>Sombre</span><small>Repose les yeux</small></span>
+            </label>
+          </fieldset>
+        </section>
+
+        <section class="settings-section">
+          <h2>Jeu</h2>
+          <label class="settings-row">
+            <span class="settings-text"><strong>Mode confirmer</strong><span class="muted">Le clic surligne la zone, puis tu valides. Utile sur téléphone ou sur les petites zones.</span></span>
+            <span class="switch"><input id="settings-confirm" type="checkbox" /><span class="switch-track" aria-hidden="true"></span></span>
+          </label>
+        </section>
+
+        <section class="settings-section">
+          <h2>Compte</h2>
+          <div id="settings-account-in" class="settings-row" hidden>
+            <span class="settings-identity"><span id="settings-avatar"></span><span class="settings-text"><strong id="settings-name"></strong><span id="settings-email" class="muted"></span></span></span>
+            <button id="settings-logout" class="btn btn-ghost" type="button"><i data-lucide="log-out" aria-hidden="true"></i><span>Se déconnecter</span></button>
+          </div>
+          <form id="avatar-form" class="password-form" novalidate hidden>
+            <h3>Avatar</h3>
+            <p class="note">Visible par tes amis et dans les défis.</p>
+            <div class="avatar-editor">
+              <div id="avatar-preview" class="avatar-preview"></div>
+              <div class="avatar-choices">
+                <fieldset class="avatar-icons">
+                  <legend class="sr-only">Icône</legend>
+                  <div id="avatar-icon-list" class="avatar-icon-list"></div>
+                </fieldset>
+                <fieldset class="avatar-colors">
+                  <legend class="sr-only">Couleur</legend>
+                  <div id="avatar-color-list" class="avatar-color-list"></div>
+                </fieldset>
+              </div>
+            </div>
+            <p id="avatar-error" class="form-error" role="alert" hidden></p>
+            <div class="hero-actions">
+              <button id="avatar-submit" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Enregistrer l’avatar</span></button>
+              <button id="avatar-reset" class="btn btn-ghost" type="button"><span>Revenir à l’initiale</span></button>
+            </div>
+          </form>
+          <form id="name-form" class="password-form" novalidate hidden>
+            <h3>Changer de pseudo</h3>
+            <div class="name-row">
+              <div class="field">
+                <label for="name-input">Pseudo <span class="muted">(2 caractères minimum, visible par tes amis)</span></label>
+                <input id="name-input" type="text" autocomplete="nickname" maxlength="60" required minlength="2" />
+              </div>
+              <button id="name-submit" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Enregistrer</span></button>
+            </div>
+            <p id="name-error" class="form-error" role="alert" hidden></p>
+          </form>
+          <form id="email-form" class="password-form" novalidate hidden>
+            <h3>Changer d’adresse e-mail</h3>
+            <p class="note">Elle sert à te connecter et à récupérer ton mot de passe.</p>
+            <div class="password-grid">
+              <div class="field">
+                <label for="email-input">Nouvelle adresse e-mail</label>
+                <input id="email-input" type="email" autocomplete="email" required />
+              </div>
+              <div class="field">
+                <label for="email-password">Mot de passe actuel</label>
+                <input id="email-password" type="password" autocomplete="current-password" required />
+              </div>
+            </div>
+            <p id="email-error" class="form-error" role="alert" hidden></p>
+            <p id="email-pending" class="form-success" role="status" hidden></p>
+            <div class="hero-actions">
+              <button id="email-submit" class="btn btn-primary" type="submit"><i data-lucide="mail" aria-hidden="true"></i><span>Envoyer le lien de confirmation</span></button>
+              <button id="email-cancel" class="btn btn-ghost" type="button" hidden><span>Annuler la demande</span></button>
+            </div>
+          </form>
+          <form id="password-form" class="password-form" novalidate hidden>
+            <h3>Changer de mot de passe</h3>
+            <div class="field">
+              <label for="pwd-current">Mot de passe actuel</label>
+              <input id="pwd-current" type="password" autocomplete="current-password" required />
+            </div>
+            <div class="password-grid">
+              <div class="field">
+                <label for="pwd-new">Nouveau mot de passe <span class="muted">(8 caractères minimum)</span></label>
+                <input id="pwd-new" type="password" autocomplete="new-password" required minlength="8" />
+              </div>
+              <div class="field">
+                <label for="pwd-confirm">Confirme le nouveau</label>
+                <input id="pwd-confirm" type="password" autocomplete="new-password" required minlength="8" />
+              </div>
+            </div>
+            <p id="pwd-error" class="form-error" role="alert" hidden></p>
+            <button id="pwd-submit" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Changer le mot de passe</span></button>
+          </form>
+          <div id="settings-account-out" class="settings-row">
+            <span class="settings-text"><strong>Pas connecté</strong><span class="muted">Un compte garde tes records, ta campagne et tes leçons partout, et permet les défis entre amis.</span></span>
+            <button id="settings-login" class="btn btn-primary" type="button"><i data-lucide="circle-user-round" aria-hidden="true"></i><span>Se connecter</span></button>
+          </div>
+        </section>
+
+        <section id="settings-danger" class="settings-section settings-danger" hidden>
+          <h2>Supprimer le compte</h2>
+          <div class="settings-row">
+            <span class="settings-text"><strong>Supprimer définitivement mon compte</strong><span class="muted">Records, trophées, campagne, leçons, amis et défis seront effacés. Cette action est irréversible.</span></span>
+            <button id="delete-open" class="btn btn-ghost btn-danger" type="button"><i data-lucide="trash-2" aria-hidden="true"></i><span>Supprimer mon compte</span></button>
+          </div>
+          <form id="delete-form" class="delete-form" novalidate hidden>
+            <div class="field">
+              <label for="delete-password">Confirme avec ton mot de passe</label>
+              <input id="delete-password" type="password" autocomplete="current-password" required />
+            </div>
+            <p id="delete-error" class="form-error" role="alert" hidden></p>
+            <div class="hero-actions">
+              <button id="delete-submit" class="btn btn-danger-solid" type="submit"><i data-lucide="trash-2" aria-hidden="true"></i><span>Supprimer définitivement</span></button>
+              <button id="delete-cancel" class="btn btn-ghost" type="button"><span>Annuler</span></button>
+            </div>
+          </form>
+        </section>
+
+        <section class="settings-section">
+          <h2>Données de ce navigateur</h2>
+          <div class="settings-row">
+            <span class="settings-text"><strong>Effacer les données locales</strong><span class="muted">Records hors connexion, progression de campagne locale et leçons non synchronisées. Ton compte en ligne n’est pas touché.</span></span>
+            <button id="settings-clear" class="btn btn-ghost btn-danger" type="button"><i data-lucide="trash-2" aria-hidden="true"></i><span>Effacer</span></button>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- Amis, défis, classement -->
+    <main id="screen-friends" class="screen container page" hidden>
+      <div class="page-head">
+        <a class="btn btn-ghost" href="#/"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Accueil</span></a>
+        <h1>Amis et défis</h1>
+      </div>
+      <div id="friends-body"></div>
+    </main>
+
+    <!-- Choix de la carte pour un défi -->
+    <div id="challenge-modal" class="modal-backdrop" hidden>
+      <section class="modal modal-auth" role="dialog" aria-modal="true" aria-labelledby="challenge-title">
+        <div class="modal-head">
+          <h2 id="challenge-title">Défier</h2>
+          <button id="challenge-close" class="btn btn-icon btn-icon-plain" type="button" aria-label="Fermer"><i data-lucide="x" aria-hidden="true"></i></button>
+        </div>
+        <p class="note">Vous jouerez tous les deux la même partie, dans le même ordre. Le meilleur score gagne, le temps départage.</p>
+        <form id="challenge-form" novalidate>
+          <div class="field">
+            <label for="challenge-region">Carte</label>
+            <select id="challenge-region"></select>
+          </div>
+          <div class="field">
+            <label for="challenge-mode">Mode</label>
+            <select id="challenge-mode"></select>
+          </div>
+          <p id="challenge-error" class="form-error" role="alert" hidden></p>
+          <button id="challenge-submit" class="btn btn-primary btn-block" type="submit"><i data-lucide="swords" aria-hidden="true"></i><span>Lancer le défi</span></button>
+        </form>
+      </section>
+    </div>
+
+    <!-- Fin de partie (cartes) -->
+    <div id="results" class="modal-backdrop" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="results-title">
+        <h2 id="results-title">Partie terminée</h2>
+        <p id="results-region" class="muted"></p>
+        <div class="stat-row">
+          <div class="stat"><span class="stat-value" id="res-score">0 %</span><span class="stat-label">du premier coup</span></div>
+          <div class="stat"><span class="stat-value" id="res-time">0:00</span><span class="stat-label">temps</span></div>
+          <div class="stat"><span class="stat-value" id="res-errors">0</span><span class="stat-label">erreurs</span></div>
+        </div>
+        <p id="res-best" class="best"></p>
+        <p id="res-duel" class="duel-result" hidden></p>
+        <p id="res-level" class="level-result" hidden></p>
+        <p id="res-saved" class="muted small" hidden></p>
+        <div id="res-missed-wrap">
+          <h3>À revoir</h3>
+          <ul id="res-missed" class="missed"></ul>
+        </div>
+        <div class="modal-actions">
+          <button id="btn-next-level" class="btn btn-primary" type="button" hidden>
+            <i data-lucide="arrow-right" aria-hidden="true"></i>
+            <span>Niveau suivant</span>
+          </button>
+          <button id="btn-replay" class="btn btn-primary" type="button">
+            <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+            <span>Rejouer</span>
+          </button>
+          <button id="btn-home" class="btn btn-ghost" type="button">Changer de carte</button>
+          <button id="btn-duels" class="btn btn-ghost" type="button" hidden>Mes défis</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- Connexion / inscription -->
+    <div id="share-modal" class="modal-backdrop" hidden>
+      <form id="share-form" class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="share-title" novalidate>
+        <h2 id="share-title">Partager la leçon</h2>
+        <p class="note">Tes amis cochés verront la leçon dans leurs cours, pourront la réviser et faire le quiz. Chacun garde sa propre progression, et les meilleurs scores font un classement.</p>
+        <div id="share-friends" class="share-friends"></div>
+        <div class="hero-actions">
+          <button id="share-submit" class="btn btn-primary" type="submit"><i data-lucide="send" aria-hidden="true"></i><span>Partager</span></button>
+          <button id="share-cancel" class="btn btn-ghost" type="button"><span>Annuler</span></button>
+        </div>
+      </form>
+    </div>
+
+    <div id="rank-modal" class="modal-backdrop" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="rank-title">
+        <div class="modal-head">
+          <h2 id="rank-title">Classement</h2>
+          <button id="rank-close" class="btn btn-icon btn-icon-plain" type="button" aria-label="Fermer"><i data-lucide="x" aria-hidden="true"></i></button>
+        </div>
+        <div id="rank-body"></div>
+      </section>
+    </div>
+
+    <div id="n2d-modal" class="modal-backdrop" hidden>
+      <form id="n2d-form" class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="n2d-heading" novalidate>
+        <h2 id="n2d-heading">Transformer en leçon</h2>
+        <p class="note">Chaque ligne « <strong>terme : définition</strong> » de la note devient une carte question → réponse. Tu pourras tout retoucher ensuite.</p>
+        <div class="field">
+          <label for="n2d-title">Titre de la leçon</label>
+          <input id="n2d-title" type="text" maxlength="120" required />
+        </div>
+        <div class="field">
+          <label for="n2d-sep">Séparateur</label>
+          <select id="n2d-sep">
+            <option value="auto">Automatique</option>
+            <option value="colon">Deux-points ( : )</option>
+            <option value="arrow">Flèche ( => ou → )</option>
+            <option value="dash">Tiret ( — )</option>
+            <option value="equal">Égal ( = )</option>
+            <option value="tab">Tabulation / double espace</option>
+          </select>
+        </div>
+        <p id="n2d-count" class="muted small"></p>
+        <ul id="n2d-preview" class="n2d-preview"></ul>
+        <p id="n2d-error" class="form-error" role="alert" hidden></p>
+        <div class="hero-actions">
+          <button id="n2d-submit" class="btn btn-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Créer la leçon</span></button>
+          <button id="n2d-cancel" class="btn btn-ghost" type="button"><span>Annuler</span></button>
+        </div>
+      </form>
+    </div>
+
+    <div id="name-modal" class="modal-backdrop" hidden>
+      <form id="name-modal-form" class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="name-modal-title" novalidate>
+        <h2 id="name-modal-title">Nouveau dossier</h2>
+        <div class="field">
+          <label for="name-modal-input">Nom</label>
+          <input id="name-modal-input" type="text" maxlength="120" placeholder="Bac 1 marketing" required />
+        </div>
+        <div class="hero-actions">
+          <button id="name-modal-submit" class="btn btn-primary" type="submit"><span>Créer</span></button>
+          <button id="name-modal-cancel" class="btn btn-ghost" type="button"><span>Annuler</span></button>
+        </div>
+      </form>
+    </div>
+
+    <div id="move-modal" class="modal-backdrop" hidden>
+      <form id="move-modal-form" class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="move-modal-title" novalidate>
+        <h2 id="move-modal-title">Déplacer vers</h2>
+        <div class="field">
+          <label for="move-modal-select">Dossier de destination</label>
+          <select id="move-modal-select"></select>
+        </div>
+        <div class="hero-actions">
+          <button class="btn btn-primary" type="submit"><span>Déplacer</span></button>
+          <button id="move-modal-cancel" class="btn btn-ghost" type="button"><span>Annuler</span></button>
+        </div>
+      </form>
+    </div>
+
+    <div id="auth-modal" class="modal-backdrop" hidden>
+      <section class="modal modal-auth" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+        <div class="modal-head">
+          <h2 id="auth-title">Se connecter</h2>
+          <button id="auth-close" class="btn btn-icon btn-icon-plain" type="button" aria-label="Fermer"><i data-lucide="x" aria-hidden="true"></i></button>
+        </div>
+        <div class="tabs" role="tablist">
+          <button id="tab-login" class="tab" role="tab" type="button" aria-selected="true">Connexion</button>
+          <button id="tab-register" class="tab" role="tab" type="button" aria-selected="false">Créer un compte</button>
+        </div>
+        <p class="note">Le compte est facultatif : il sert à retrouver tes stats et tes mémos sur tous tes appareils.</p>
+        <form id="auth-form" class="auth-form" novalidate>
+          <div class="field" id="auth-name-field" hidden>
+            <label for="auth-name">Pseudo</label>
+            <input id="auth-name" type="text" autocomplete="nickname" maxlength="60" />
+          </div>
+          <div class="field">
+            <label for="auth-email">Adresse e-mail</label>
+            <input id="auth-email" type="email" autocomplete="email" required />
+          </div>
+          <div class="field" id="auth-password-field">
+            <label for="auth-password">Mot de passe <span id="auth-password-hint" class="muted" hidden>(8 caractères minimum)</span></label>
+            <input id="auth-password" type="password" autocomplete="current-password" required minlength="8" />
+          </div>
+          <p id="auth-forgot-note" class="note" hidden>Indique ton adresse : si un compte existe, tu recevras un lien pour choisir un nouveau mot de passe.</p>
+          <p id="auth-error" class="form-error" role="alert" hidden></p>
+          <p id="auth-success" class="form-success" role="status" hidden></p>
+          <button id="auth-submit" class="btn btn-primary btn-block" type="submit"><span>Se connecter</span></button>
+          <button id="auth-forgot" class="link-btn" type="button">Mot de passe oublié ?</button>
+          <button id="auth-back" class="link-btn" type="button" hidden>Retour à la connexion</button>
+        </form>
+      </section>
+    </div>
+
+    <div id="invite-banner" class="invite-banner" role="status" hidden></div>
+    <nav id="tabbar" class="tabbar" aria-label="Navigation principale">
+      <a href="#/" data-tab="home"><i data-lucide="house" aria-hidden="true"></i><span>Accueil</span></a>
+      <a href="#/campagne" data-tab="campaign"><i data-lucide="flag" aria-hidden="true"></i><span>Campagne</span></a>
+      <a href="#/memos" data-tab="memos"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Cours</span></a>
+      <a href="#/amis" data-tab="friends"><i data-lucide="users" aria-hidden="true"></i><span>Amis</span><span class="badge nav-badge" data-nav-badge hidden>0</span></a>
+      <a href="#/reglages" data-tab="settings"><i data-lucide="settings" aria-hidden="true"></i><span>Réglages</span></a>
+    </nav>
+    <div id="toast" class="toast" role="status" hidden></div>
+
+  </body>
+</html>
