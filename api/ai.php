@@ -1,10 +1,11 @@
 <?php
 // IA : génération de quiz à partir d'un cours (texte ou PDF) et complétion d'une carte
-// (réponse + mauvaises réponses). Appelle l'API Claude d'Anthropic côté serveur avec la clé
-// du .env (ANTHROPIC_API_KEY) : la clé ne sort jamais du serveur. Quota journalier par compte.
+// (réponse + mauvaises réponses). Plusieurs fournisseurs au choix dans le .env (AI_PROVIDER) :
+// gemini (niveau gratuit), anthropic (Claude), mistral, groq, ou tout service « compatible OpenAI ».
+// La clé ne sort jamais du serveur. Quota journalier par compte.
 //
-// Appel HTTP direct (curl) plutôt que le SDK PHP officiel : l'hébergement est déployé par
-// simple copie de fichiers, sans Composer ni dossier vendor.
+// Appels HTTP directs (curl) plutôt que des SDK : l'hébergement est déployé par simple copie
+// de fichiers, sans Composer ni dossier vendor.
 declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 
@@ -13,11 +14,35 @@ $uid = requireUser();
 const AI_MAX_TEXT = 120000; // caractères de cours acceptés par génération
 const AI_MAX_PDF = 12 * 1024 * 1024; // octets (base64 décodé)
 
+// Fournisseurs : modèle par défaut, clé attendue, lecture des PDF, adresse « compatible OpenAI ».
+const PROVIDERS = [
+  'gemini' => ['model' => 'gemini-3.8-flash', 'keyEnv' => 'GEMINI_API_KEY', 'pdf' => true],
+  'anthropic' => ['model' => 'claude-opus-5', 'keyEnv' => 'ANTHROPIC_API_KEY', 'pdf' => true],
+  'mistral' => ['model' => 'mistral-large-latest', 'keyEnv' => 'MISTRAL_API_KEY', 'pdf' => false, 'base' => 'https://api.mistral.ai/v1'],
+  'groq' => ['model' => null, 'keyEnv' => 'GROQ_API_KEY', 'pdf' => false, 'base' => 'https://api.groq.com/openai/v1'],
+  'openai' => ['model' => null, 'keyEnv' => 'OPENAI_API_KEY', 'pdf' => false, 'base' => 'https://api.openai.com/v1'],
+];
+
 function aiConfig(): array {
   $env = fn(string $k, ?string $d = null) => (getenv($k) !== false && getenv($k) !== '') ? getenv($k) : $d;
+  $provider = strtolower($env('AI_PROVIDER', '') ?? '');
+  if (!isset(PROVIDERS[$provider])) {
+    // Sans AI_PROVIDER : le premier fournisseur dont la clé est renseignée.
+    $provider = 'gemini';
+    foreach (PROVIDERS as $name => $p) {
+      if ($env($p['keyEnv'])) {
+        $provider = $name;
+        break;
+      }
+    }
+  }
+  $p = PROVIDERS[$provider];
   return [
-    'key' => $env('ANTHROPIC_API_KEY'),
-    'model' => $env('AI_MODEL', 'claude-opus-5'),
+    'provider' => $provider,
+    'key' => $env('AI_API_KEY', $env($p['keyEnv'])),
+    'model' => $env('AI_MODEL', $p['model']),
+    'base' => rtrim($env('AI_BASE_URL', $p['base'] ?? '') ?? '', '/'),
+    'pdf' => $p['pdf'],
     'limit' => max(1, (int) $env('AI_DAILY_LIMIT', '40')),
     'cainfo' => $env('CA_BUNDLE'),
   ];
@@ -45,25 +70,19 @@ function consume(int $uid): void {
 }
 
 function requireQuota(int $uid, array $cfg): void {
-  if (!$cfg['key']) fail(503, 'L’IA n’est pas configurée sur ce serveur (ANTHROPIC_API_KEY manquante dans le .env).');
+  if (!$cfg['key']) fail(503, 'L’IA n’est pas configurée sur ce serveur (clé d’API manquante dans le .env).');
+  if (!$cfg['model']) fail(503, "Indique le modèle à utiliser (AI_MODEL) pour le fournisseur {$cfg['provider']}.");
   if (usedToday($uid) >= $cfg['limit']) fail(429, "Quota IA du jour atteint ({$cfg['limit']} générations). Réessaie demain.");
 }
 
-// Appel à POST /v1/messages avec une sortie JSON contrainte par un schéma. Renvoie le JSON décodé.
-function askClaude(array $cfg, string $system, array $userContent, array $schema, int $maxTokens = 16000): array {
-  $payload = [
-    'model' => $cfg['model'],
-    'max_tokens' => $maxTokens,
-    'system' => $system,
-    'messages' => [['role' => 'user', 'content' => $userContent]],
-    'output_config' => ['effort' => 'medium', 'format' => ['type' => 'json_schema', 'schema' => $schema]],
-  ];
-  $ch = curl_init('https://api.anthropic.com/v1/messages');
+// Requête HTTP JSON vers un fournisseur ; renvoie [statut, corps décodé, corps brut].
+function httpJson(array $cfg, string $url, array $headers, array $payload): array {
+  $ch = curl_init($url);
   curl_setopt_array($ch, [
     CURLOPT_POST => true,
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_TIMEOUT => 240,
-    CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'x-api-key: ' . $cfg['key'], 'anthropic-version: 2023-06-01'],
+    CURLOPT_HTTPHEADER => array_merge(['Content-Type: application/json'], $headers),
     CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
   ]);
   if ($cfg['cainfo']) curl_setopt($ch, CURLOPT_CAINFO, $cfg['cainfo']);
@@ -76,25 +95,105 @@ function askClaude(array $cfg, string $system, array $userContent, array $schema
   }
   $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
   curl_close($ch);
-  $res = json_decode($raw, true);
-  if ($status === 401) fail(503, 'Clé d’API IA refusée : vérifie ANTHROPIC_API_KEY.');
-  if ($status === 429) fail(429, 'L’IA est saturée, réessaie dans une minute.');
+  return [$status, json_decode($raw, true), $raw];
+}
+
+// Erreurs communes à tous les fournisseurs, avec des messages compréhensibles.
+function checkStatus(int $status, mixed $res, string $raw): void {
+  $msg = is_array($res) ? ($res['error']['message'] ?? ($res['message'] ?? null)) : null;
+  // Google renvoie un 400 pour une clé invalide, les autres un 401/403.
+  if ($status === 401 || $status === 403 || ($status === 400 && $msg && stripos($msg, 'api key') !== false)) fail(503, 'Clé d’API IA refusée : vérifie la clé dans le .env.');
+  if ($status === 404) fail(503, 'Modèle IA introuvable chez ce fournisseur : vérifie AI_MODEL.' . ($msg ? " ($msg)" : ''));
+  if ($status === 429) fail(429, 'L’IA est saturée ou la limite gratuite est atteinte : réessaie dans une minute.');
   if ($status >= 400 || !is_array($res)) {
     error_log('ai: HTTP ' . $status . ' ' . substr($raw, 0, 500));
-    fail(502, 'L’IA a renvoyé une erreur (' . ($res['error']['message'] ?? "HTTP $status") . ').');
+    fail(502, 'L’IA a renvoyé une erreur (' . ($msg ?? "HTTP $status") . ').');
   }
-  if (($res['stop_reason'] ?? '') === 'refusal') fail(422, 'L’IA a refusé ce contenu.');
-  if (($res['stop_reason'] ?? '') === 'max_tokens') fail(422, 'Cours trop long pour une seule génération : découpe-le ou demande moins de questions.');
-  $text = '';
-  foreach ($res['content'] ?? [] as $block) {
-    if (($block['type'] ?? '') === 'text') {
-      $text = $block['text'];
-      break;
-    }
-  }
-  $data = json_decode($text, true);
+}
+
+// Le JSON demandé, même si le modèle l'a entouré de texte ou de ```.
+function parseJsonText(string $text): array {
+  $t = trim($text);
+  $t = preg_replace('/^```(?:json)?\s*|\s*```$/', '', $t);
+  $data = json_decode($t, true);
+  if (!is_array($data) && preg_match('/\{.*\}/s', $t, $m)) $data = json_decode($m[0], true);
   if (!is_array($data)) fail(502, 'Réponse de l’IA illisible.');
   return $data;
+}
+
+// Gemini refuse les mots-clés JSON Schema qu'il ne connaît pas.
+function stripSchema(array $schema): array {
+  unset($schema['additionalProperties']);
+  foreach ($schema as $k => $v) if (is_array($v)) $schema[$k] = stripSchema($v);
+  return $schema;
+}
+
+// Pose la question au fournisseur configuré, avec une sortie JSON contrainte par $schema.
+// $pdf : PDF en base64 (Gemini et Claude seulement), $text : la demande.
+function askModel(array $cfg, string $system, string $text, ?string $pdf, array $schema, int $maxTokens = 16000): array {
+  if ($pdf !== null && !$cfg['pdf']) fail(422, 'Ce fournisseur d’IA ne lit pas les PDF : colle le texte du cours, ou joins un .pptx/.docx.');
+  switch ($cfg['provider']) {
+    case 'anthropic': {
+      $content = [];
+      if ($pdf !== null) $content[] = ['type' => 'document', 'source' => ['type' => 'base64', 'media_type' => 'application/pdf', 'data' => $pdf]];
+      $content[] = ['type' => 'text', 'text' => $text];
+      [$status, $res, $raw] = httpJson($cfg, 'https://api.anthropic.com/v1/messages', ['x-api-key: ' . $cfg['key'], 'anthropic-version: 2023-06-01'], [
+        'model' => $cfg['model'],
+        'max_tokens' => $maxTokens,
+        'system' => $system,
+        'messages' => [['role' => 'user', 'content' => $content]],
+        'output_config' => ['effort' => 'medium', 'format' => ['type' => 'json_schema', 'schema' => $schema]],
+      ]);
+      checkStatus($status, $res, $raw);
+      if (($res['stop_reason'] ?? '') === 'refusal') fail(422, 'L’IA a refusé ce contenu.');
+      if (($res['stop_reason'] ?? '') === 'max_tokens') fail(422, 'Cours trop long pour une seule génération : découpe-le ou demande moins de questions.');
+      $out = '';
+      foreach ($res['content'] ?? [] as $block) if (($block['type'] ?? '') === 'text') $out .= $block['text'];
+      return parseJsonText($out);
+    }
+
+    case 'gemini': {
+      $parts = [];
+      if ($pdf !== null) $parts[] = ['inlineData' => ['mimeType' => 'application/pdf', 'data' => $pdf]];
+      $parts[] = ['text' => $text];
+      $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($cfg['model']) . ':generateContent';
+      [$status, $res, $raw] = httpJson($cfg, $url, ['x-goog-api-key: ' . $cfg['key']], [
+        'systemInstruction' => ['parts' => [['text' => $system]]],
+        'contents' => [['role' => 'user', 'parts' => $parts]],
+        'generationConfig' => ['responseMimeType' => 'application/json', 'responseJsonSchema' => stripSchema($schema), 'maxOutputTokens' => $maxTokens],
+      ]);
+      checkStatus($status, $res, $raw);
+      if (!empty($res['promptFeedback']['blockReason'])) fail(422, 'L’IA a refusé ce contenu.');
+      $cand = $res['candidates'][0] ?? null;
+      if (!$cand) fail(502, 'Réponse de l’IA vide.');
+      $finish = $cand['finishReason'] ?? 'STOP';
+      if ($finish === 'MAX_TOKENS') fail(422, 'Cours trop long pour une seule génération : découpe-le ou demande moins de questions.');
+      if ($finish === 'SAFETY' || $finish === 'RECITATION') fail(422, 'L’IA a refusé ce contenu.');
+      $out = '';
+      foreach ($cand['content']['parts'] ?? [] as $part) $out .= $part['text'] ?? '';
+      return parseJsonText($out);
+    }
+
+    // Mistral, Groq, OpenAI et tout service au même format « chat/completions ».
+    default: {
+      [$status, $res, $raw] = httpJson($cfg, $cfg['base'] . '/chat/completions', ['Authorization: Bearer ' . $cfg['key']], [
+        'model' => $cfg['model'],
+        'max_tokens' => $maxTokens,
+        'messages' => [
+          ['role' => 'system', 'content' => $system . "\n\nRéponds uniquement par un objet JSON respectant ce schéma :\n" . json_encode($schema, JSON_UNESCAPED_UNICODE)],
+          ['role' => 'user', 'content' => $text],
+        ],
+        'response_format' => ['type' => 'json_object'],
+      ]);
+      checkStatus($status, $res, $raw);
+      $choice = $res['choices'][0] ?? null;
+      if (!$choice) fail(502, 'Réponse de l’IA vide.');
+      if (($choice['finish_reason'] ?? '') === 'length') fail(422, 'Cours trop long pour une seule génération : découpe-le ou demande moins de questions.');
+      $out = $choice['message']['content'] ?? '';
+      if (is_array($out)) $out = implode('', array_map(fn($p) => $p['text'] ?? '', $out));
+      return parseJsonText((string) $out);
+    }
+  }
 }
 
 // Nettoyage d'une carte générée : longueurs, doublons, 3 mauvaises réponses maximum distinctes.
@@ -150,7 +249,7 @@ switch (action()) {
   case 'status': {
     $cfg = aiConfig();
     ensureUsageTable();
-    ok(['enabled' => (bool) $cfg['key'], 'limit' => $cfg['limit'], 'used' => usedToday($uid), 'model' => $cfg['model']]);
+    ok(['enabled' => (bool) $cfg['key'] && (bool) $cfg['model'], 'provider' => $cfg['provider'], 'model' => $cfg['model'], 'pdf' => $cfg['pdf'], 'limit' => $cfg['limit'], 'used' => usedToday($uid)]);
   }
 
   // Cours (texte et/ou PDF en base64) → cartes de quiz.
@@ -171,13 +270,10 @@ switch (action()) {
     }
     if ($text === '' && $pdf === '') fail(422, 'Colle le contenu du cours ou joins un fichier.');
 
-    $content = [];
-    if ($pdf !== '') $content[] = ['type' => 'document', 'source' => ['type' => 'base64', 'media_type' => 'application/pdf', 'data' => $pdf]];
     $ask = "Génère $count cartes de quiz" . ($title !== '' ? " pour la leçon « $title »" : '') . " à partir de ce cours.";
     if ($text !== '') $ask .= "\n\n<cours>\n$text\n</cours>";
-    $content[] = ['type' => 'text', 'text' => $ask];
 
-    $data = askClaude($cfg, GENERATE_SYSTEM, $content, CARDS_SCHEMA, 16000);
+    $data = askModel($cfg, GENERATE_SYSTEM, $ask, $pdf !== '' ? $pdf : null, CARDS_SCHEMA, 16000);
     consume($uid); // compte seulement les appels qui ont abouti
     $cards = [];
     $seen = [];
@@ -215,7 +311,7 @@ switch (action()) {
     $ask = $back !== ''
       ? "Question : $front\nBonne réponse (à garder telle quelle dans « answer ») : $back\nPropose trois mauvaises réponses."
       : "Question : $front\nDonne la bonne réponse et trois mauvaises réponses.";
-    $data = askClaude($cfg, $system, [['type' => 'text', 'text' => $ask]], $schema, 2000);
+    $data = askModel($cfg, $system, $ask, null, $schema, 2000);
     consume($uid);
     $card = cleanCard(['question' => $front, 'answer' => $back !== '' ? $back : ($data['answer'] ?? ''), 'wrong' => $data['wrong'] ?? []]);
     if (!$card) fail(422, 'Pas de proposition pour cette question.');

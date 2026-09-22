@@ -73,8 +73,12 @@ export async function renderAiScreen(folderId = null) {
   $('ai-unavailable').hidden = st.enabled;
   $('ai-form').hidden = !st.enabled;
   if (!currentUser()) $('ai-unavailable').textContent = 'Connecte-toi pour utiliser la génération par IA.';
-  else if (!st.enabled) $('ai-unavailable').textContent = 'L’IA n’est pas configurée sur ce serveur : ajoute ANTHROPIC_API_KEY dans le .env de l’API.';
+  else if (!st.enabled) $('ai-unavailable').textContent = 'L’IA n’est pas configurée sur ce serveur : ajoute une clé d’API (par ex. GEMINI_API_KEY) dans le .env de l’API.';
   else $('ai-quota').textContent = `${st.limit - st.used} génération${st.limit - st.used > 1 ? 's' : ''} restante${st.limit - st.used > 1 ? 's' : ''} aujourd’hui.`;
+  $('ai-file').accept = st.pdf ? '.pdf,.pptx,.docx,.txt,.md,application/pdf,text/plain' : '.pptx,.docx,.txt,.md,text/plain';
+  $('ai-file-hint').textContent = st.pdf
+    ? 'PowerPoint (.pptx), Word (.docx), PDF (12 Mo max), texte. Les anciens .ppt/.doc doivent être enregistrés au format récent.'
+    : 'PowerPoint (.pptx), Word (.docx), texte. Ce fournisseur d’IA ne lit pas les PDF : copie-colle leur texte.';
   await fillFolders(folderId);
   refreshIcons();
 }
@@ -85,6 +89,7 @@ export function initAi() {
     if (!file) return;
     $('ai-file-label').textContent = 'Lecture…';
     try {
+      if (file.name.toLowerCase().endsWith('.pdf') && !status?.pdf) throw new Error('Ce fournisseur d’IA ne lit pas les PDF : colle le texte du cours.');
       const res = await extractCourse(file);
       source = { text: res.text ?? '', pdf: res.pdf ?? null, label: file.name };
       if (res.text !== undefined && !res.text.trim()) throw new Error('Aucun texte trouvé dans ce fichier.');
@@ -115,7 +120,7 @@ export function initAi() {
     try {
       const res = await post('ai', 'generate', { text, pdf: source.pdf, title: $('ai-title').value.trim(), count: Number($('ai-count').value) });
       generated = res.cards;
-      status = { enabled: true, used: res.used, limit: res.limit };
+      status = { ...status, enabled: true, used: res.used, limit: res.limit };
       $('ai-quota').textContent = `${res.limit - res.used} génération${res.limit - res.used > 1 ? 's' : ''} restante${res.limit - res.used > 1 ? 's' : ''} aujourd’hui.`;
       renderCards();
       $('ai-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
