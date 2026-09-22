@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "data": "node scripts/build-data.mjs",
     "api": "php -d extension=pdo_sqlite -d extension=pdo_mysql -d extension=mbstring -d extension=curl -d extension=openssl -S 127.0.0.1:8080 -t .",
-    "package": "node scripts/package.mjs"
+    "package": "node scripts/package.mjs",
+    "deploy": "node scripts/deploy.mjs"
   },
   "keywords": [],
   "author": "",
