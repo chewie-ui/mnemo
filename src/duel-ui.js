@@ -189,12 +189,22 @@ function launch(duel) {
 const seen = new Set(); // invitations déjà signalées pendant cette session
 let inboxTimer = null;
 
+// Si le serveur répond mal plusieurs fois de suite, on arrête de le solliciter toutes les
+// 10 secondes : inutile de remplir la console d'erreurs identiques.
+let inboxFailures = 0;
+
 async function checkInbox() {
   if (!currentUser()) return;
   let inbox;
   try {
     inbox = await get('duels', 'inbox');
+    inboxFailures = 0;
   } catch {
+    if (++inboxFailures >= 3) {
+      clearInterval(inboxTimer);
+      inboxTimer = null;
+      console.warn('Notifications de défis suspendues : le serveur ne répond pas. Recharge la page une fois le problème réglé.');
+    }
     return;
   }
   const pending = inbox.invites.length + inbox.ready.length;
@@ -233,6 +243,7 @@ function showInviteBanner(duel) {
 
 export function startInboxWatch() {
   clearInterval(inboxTimer);
+  inboxFailures = 0;
   checkInbox();
   inboxTimer = setInterval(checkInbox, 10000);
 }
