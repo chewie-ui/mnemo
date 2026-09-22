@@ -4,6 +4,27 @@
 
 declare(strict_types=1);
 
+// Une erreur PHP ne doit jamais s'afficher : elle partirait dans la réponse JSON et révélerait
+// les chemins du serveur. On journalise, et on répond proprement.
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
+set_exception_handler(function (Throwable $e): void {
+  error_log('api: ' . $e);
+  if (!headers_sent()) {
+    header('Content-Type: application/json; charset=utf-8', true, 500);
+  }
+  echo json_encode(['error' => 'Erreur interne du serveur. Regarde les journaux PHP de l’hébergement.'], JSON_UNESCAPED_UNICODE);
+  exit;
+});
+
+register_shutdown_function(function (): void {
+  $err = error_get_last();
+  if (!$err || !in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) return;
+  if (!headers_sent()) header('Content-Type: application/json; charset=utf-8', true, 500);
+  echo json_encode(['error' => 'Erreur interne du serveur. Regarde les journaux PHP de l’hébergement.'], JSON_UNESCAPED_UNICODE);
+});
+
 // Lu une seule fois par requête (config.php déclare des fonctions : pas de double require).
 function config(): array {
   static $config = null;
@@ -38,11 +59,19 @@ function db(): PDO {
   static $pdo = null;
   if ($pdo) return $pdo;
   $config = config();
-  $pdo = new PDO($config['dsn'], $config['user'], $config['password'], [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES => false,
-  ]);
+  try {
+    $pdo = new PDO($config['dsn'], $config['user'], $config['password'], [
+      PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+      PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+      PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
+  } catch (PDOException $e) {
+    error_log('db: ' . $e->getMessage() . ' (dsn: ' . preg_replace('/(password|pwd)=[^;]*/i', '$1=***', $config['dsn']) . ')');
+    $sqlite = str_starts_with($config['dsn'], 'sqlite:');
+    fail(503, $sqlite
+      ? 'Base de données non configurée : crée le fichier api/.env avec les identifiants MySQL (voir .env.example).'
+      : 'Connexion à la base de données impossible : vérifie les identifiants dans api/.env.');
+  }
   if (str_starts_with($config['dsn'], 'sqlite:')) {
     // En local, le schéma se crée tout seul.
     $pdo->exec('PRAGMA foreign_keys = ON');

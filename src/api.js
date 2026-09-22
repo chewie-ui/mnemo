@@ -35,6 +35,8 @@ export async function api(endpoint, action, { method = 'GET', body, query = {} }
   }
   // 502/503/504 : le relais fonctionne mais pas le serveur PHP derrière (en local : npm run dev lance les deux).
   if (res.status >= 502 && res.status <= 504 && !data.error) throw new ApiError(res.status, 'Le serveur ne répond pas pour le moment. Réessaie dans un instant.');
+  // Réponse sans JSON exploitable (page d'erreur du serveur) : message compréhensible.
+  if (!res.ok && !data.error) throw new ApiError(res.status, `Le serveur a renvoyé une erreur (${res.status}). Si tu viens d'installer le site, vérifie api/.env.`);
   if (!res.ok) throw new ApiError(res.status, data.error ?? `Erreur ${res.status}`);
   return data;
 }
