@@ -47,6 +47,14 @@ function db(): PDO {
     // En local, le schéma se crée tout seul.
     $pdo->exec('PRAGMA foreign_keys = ON');
     $pdo->exec(file_get_contents(__DIR__ . '/schema.sqlite.sql'));
+  } else {
+    // Première visite sur une base MySQL vide : on crée les tables (plus besoin de passer par
+    // phpMyAdmin). Les instructions sont des CREATE TABLE IF NOT EXISTS : rien n'est écrasé.
+    try {
+      $pdo->query('SELECT 1 FROM users LIMIT 1');
+    } catch (PDOException) {
+      runSchema($pdo, __DIR__ . '/schema.mysql.sql');
+    }
   }
   // Colonnes ajoutées après coup : créées sur les bases existantes, SQLite comme MySQL.
   try {
@@ -55,6 +63,21 @@ function db(): PDO {
     $pdo->exec('ALTER TABLE users ADD COLUMN avatar VARCHAR(40) NULL');
   }
   return $pdo;
+}
+
+// Exécute un fichier .sql instruction par instruction (les commentaires « -- » sont ignorés).
+function runSchema(PDO $pdo, string $file): void {
+  if (!is_file($file)) return;
+  $sql = preg_replace('/^s*--.*$/m', '', file_get_contents($file));
+  foreach (explode(';', $sql) as $statement) {
+    $statement = trim($statement);
+    if ($statement === '') continue;
+    try {
+      $pdo->exec($statement);
+    } catch (PDOException $e) {
+      error_log('schema: ' . $e->getMessage());
+    }
+  }
 }
 
 // ─── Réponses ───
