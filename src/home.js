@@ -10,18 +10,33 @@ const MODE_ICON = { countries: 'map', flags: 'flag', flagpick: 'layout-grid', ca
 const PRIMARY_MODES = new Set(['countries', 'flags', 'flagpick', 'capitals']);
 const expanded = new Set(); // cartes dépliées, conservées d'un rendu à l'autre
 
-// « Pays en détail » : 179 pays, affichés par pages pour que la liste reste courte.
-const PER_PAGE = 24;
+// Listes longues affichées par pages, pour éviter d'avoir à faire défiler sans fin.
+const PER_PAGE = 24; // pays en détail (179 pays)
+const HISTORY_PER_PAGE = 8; // cartes historiques
 let countryPage = 1;
+let historyPage = 1;
 
 const fold = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 export function renderHome() {
   renderCards($('region-grid'), REGIONS);
-  renderCards($('history-grid'), HISTORY_REGIONS);
+  renderHistory(historyPage);
   renderSubdivisions($('country-search').value);
   renderMemosPreview();
   refreshIcons();
+}
+
+// Cartes historiques, page par page (elles sont courtes mais nombreuses).
+function renderHistory(page = historyPage) {
+  const pages = Math.max(1, Math.ceil(HISTORY_REGIONS.length / HISTORY_PER_PAGE));
+  historyPage = Math.min(Math.max(1, page), pages);
+  const start = (historyPage - 1) * HISTORY_PER_PAGE;
+  renderCards($('history-grid'), HISTORY_REGIONS.slice(start, start + HISTORY_PER_PAGE));
+  renderPager($('history-pager'), historyPage, pages, HISTORY_REGIONS.length, 'carte', (p) => {
+    renderHistory(p);
+    refreshIcons();
+    document.getElementById('histoire')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 
 // Une carte par pays, avec un bouton par découpage (départements, régions…), page par page.
@@ -38,7 +53,7 @@ export function renderSubdivisions(query, page = countryPage) {
   countryPage = Math.min(Math.max(1, page), pages);
   const start = (countryPage - 1) * PER_PAGE;
   renderCards($('subdivision-grid'), groups.slice(start, start + PER_PAGE), { compact: true });
-  renderPager($('subdivision-pager'), countryPage, pages, groups.length, (p) => {
+  renderPager($('subdivision-pager'), countryPage, pages, groups.length, 'pays', (p) => {
     renderSubdivisions($('country-search').value, p);
     refreshIcons();
     // On remonte à la liste, pas en haut de page : on reste dans la section.
@@ -48,7 +63,7 @@ export function renderSubdivisions(query, page = countryPage) {
 }
 
 // Numéros de pages : 1 … 4 5 [6] 7 8 … 12, avec Précédent / Suivant.
-function renderPager(nav, page, pages, total, onGo) {
+function renderPager(nav, page, pages, total, unit, onGo) {
   nav.hidden = pages <= 1;
   if (pages <= 1) {
     nav.innerHTML = '';
@@ -92,7 +107,8 @@ function renderPager(nav, page, pages, total, onGo) {
 
   const count = document.createElement('span');
   count.className = 'pager-count muted small';
-  count.textContent = `${total} pays`;
+  // « 179 pays », « 11 cartes » : le pluriel de « pays » est invariable.
+  count.textContent = `${total} ${unit === 'pays' ? 'pays' : total > 1 ? `${unit}s` : unit}`;
   nav.appendChild(count);
 }
 
