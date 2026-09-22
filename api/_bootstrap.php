@@ -58,6 +58,13 @@ if (!empty($config['origin']) && !empty($_SERVER['HTTP_ORIGIN']) && $_SERVER['HT
 }
 
 // ─── Base de données ───
+// Colonnes apparues après la première version du schéma (table => colonne => définition).
+const MIGRATIONS = [
+  'users' => ['trophies' => 'INT UNSIGNED NOT NULL DEFAULT 0', 'avatar' => 'VARCHAR(40) NULL'],
+  'decks' => ['folder_id' => 'INT UNSIGNED NULL'],
+  'cards' => ['choices' => 'TEXT NULL'],
+];
+
 function db(): PDO {
   static $pdo = null;
   if ($pdo) return $pdo;
@@ -91,11 +98,23 @@ function db(): PDO {
       runSchema($pdo, __DIR__ . '/schema.mysql.sql');
     }
   }
-  // Colonnes ajoutées après coup : créées sur les bases existantes, SQLite comme MySQL.
-  try {
-    $pdo->query('SELECT avatar FROM users LIMIT 1');
-  } catch (PDOException) {
-    $pdo->exec('ALTER TABLE users ADD COLUMN avatar VARCHAR(40) NULL');
+  // Colonnes ajoutées au fil des versions : ajoutées si elles manquent, sur une base déjà
+  // installée comme sur une base neuve. Une seule requête par table dans le cas normal.
+  foreach (MIGRATIONS as $table => $columns) {
+    try {
+      $pdo->query('SELECT ' . implode(', ', array_keys($columns)) . " FROM $table LIMIT 1");
+    } catch (PDOException) {
+      foreach ($columns as $name => $definition) {
+        try {
+          $pdo->exec("ALTER TABLE $table ADD COLUMN $name $definition");
+        } catch (PDOException $e) {
+          // Colonne déjà présente : c'est le cas normal quand une seule manquait.
+          if (!str_contains($e->getMessage(), 'duplicate column') && !str_contains($e->getMessage(), 'Duplicate column')) {
+            error_log("migration: $table.$name : " . $e->getMessage());
+          }
+        }
+      }
+    }
   }
   return $pdo;
 }
