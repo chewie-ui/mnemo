@@ -79,8 +79,11 @@ function db(): PDO {
   } else {
     // Première visite sur une base MySQL vide : on crée les tables (plus besoin de passer par
     // phpMyAdmin). Les instructions sont des CREATE TABLE IF NOT EXISTS : rien n'est écrasé.
+    // On vérifie la première ET la dernière table du fichier : si une instruction a échoué en
+    // cours de route (base à moitié installée), le schéma est rejoué.
     try {
       $pdo->query('SELECT 1 FROM users LIMIT 1');
+      $pdo->query('SELECT 1 FROM deck_scores LIMIT 1');
     } catch (PDOException) {
       runSchema($pdo, __DIR__ . '/schema.mysql.sql');
     }
@@ -104,7 +107,9 @@ function runSchema(PDO $pdo, string $file): void {
     try {
       $pdo->exec($statement);
     } catch (PDOException $e) {
-      error_log('schema: ' . $e->getMessage());
+      // Une instruction qui echoue (table deja presente sous une autre forme, droits manquants)
+      // ne doit pas bloquer les suivantes, mais doit se retrouver dans les journaux.
+      error_log('schema: ' . $e->getMessage() . ' | ' . substr(preg_replace('/s+/', ' ', $statement), 0, 120));
     }
   }
 }
