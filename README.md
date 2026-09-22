@@ -43,7 +43,7 @@ Deux méthodes. **Avec un accès SSH, préférer la première** (mise à jour en
    cd sources/mnemo && npm ci && npm run package
    ```
 3. Dans le manager, pointer la **racine du site** sur `~/sources/mnemo/dist` (ou copier : `cp -r dist/. ~/sites/<domaine>/`).
-4. Créer `dist/api/.env` (voir `.env.example`). `npm run package` le conserve d'une construction à l'autre.
+4. Créer `api/.env` dans la racine du site (voir `.env.example`) : les noms de variables du manager Infomaniak (`DB_SERVER_CLIENT`, `DB_NAME_CLIENT`, `DB_USER_CLIENT`, `DB_PASS_CLIENT`) sont acceptés tels quels. `npm run package` le conserve d'une construction à l'autre.
 5. Mettre à jour ensuite : `cd ~/sources/mnemo && git pull && npm run package`.
 
 Sans Node sur le serveur : construire sur son PC (`npm run package`) et n'envoyer que `dist/`.
