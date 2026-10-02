@@ -5,12 +5,17 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 
-const PHP_BASE = ['-d', 'extension=pdo_sqlite', '-d', 'extension=pdo_mysql', '-d', 'extension=mbstring', '-d', 'extension=curl', '-d', 'extension=openssl'];
+const shell = process.platform === 'win32';
+// On ne demande à PHP que les extensions qu'il n'a pas déjà (sur Mac/Linux elles sont souvent intégrées,
+// et les recharger affiche des avertissements à chaque démarrage).
+const loaded = (spawnSync('php', ['-m'], { encoding: 'utf8', shell }).stdout || '').toLowerCase().split(/\r?\n/);
+const PHP_BASE = ['pdo_sqlite', 'pdo_mysql', 'mbstring', 'curl', 'openssl']
+  .filter((ext) => !loaded.includes(ext))
+  .flatMap((ext) => ['-d', `extension=${ext}`]);
 const phpArgs = (port) => [...PHP_BASE, '-S', `127.0.0.1:${port}`, '-t', '.'];
 // Sur Windows, PHP sans php.ini n'a pas de certificats racine : on prend ceux de Git pour parler à l'API IA en HTTPS.
 const CA = 'C:/Program Files/Git/mingw64/etc/ssl/certs/ca-bundle.crt';
 if (process.platform === 'win32' && existsSync(CA)) PHP_BASE.unshift('-d', `curl.cainfo=${CA}`);
-const shell = process.platform === 'win32';
 const children = new Set();
 let stopping = false;
 
