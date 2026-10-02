@@ -27,6 +27,33 @@ export const aiSuggest = (front, back, title) => post('ai', 'suggest', { front, 
 // Plusieurs cartes d'un coup : un seul appel, donc une seule unité de quota.
 export const aiSuggestMany = (cards, title) => post('ai', 'suggest', { cards, title });
 
+// Découpe un long cours en parties d'au plus `max` caractères, remplies au maximum et coupées
+// entre deux lignes (une ligne trop longue l'est entre deux phrases) : une IA lente traite ainsi
+// chaque partie dans le temps imparti, avec le moins de parties possible.
+export function splitCourse(text, max) {
+  const pieces = [];
+  for (const line of text.trim().split('\n')) {
+    if (line.length <= max) pieces.push(line);
+    else for (const sentence of line.split(/(?<=[.!?])\s+/)) {
+      for (let i = 0; i < sentence.length; i += max) pieces.push(sentence.slice(i, i + max));
+    }
+  }
+  const parts = [];
+  let current = '';
+  for (const piece of pieces) {
+    if (current && current.length + 1 + piece.length > max) {
+      parts.push(current.trim());
+      current = '';
+    }
+    current = current ? `${current}\n${piece}` : piece;
+  }
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
+const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
+const quotaText = (st) => `${st.limit - st.used} génération${st.limit - st.used > 1 ? 's' : ''} restante${st.limit - st.used > 1 ? 's' : ''} aujourd’hui.`;
+
 // ─── Écran de génération ───
 let source = { text: '', pdf: null, label: '' };
 let generated = []; // cartes proposées
@@ -76,11 +103,13 @@ export async function renderAiScreen(folderId = null) {
   $('ai-form').hidden = !st.enabled;
   if (!currentUser()) $('ai-unavailable').textContent = 'Connecte-toi pour utiliser la génération par IA.';
   else if (!st.enabled) $('ai-unavailable').textContent = 'L’IA n’est pas configurée sur ce serveur : ajoute une clé d’API (par ex. GEMINI_API_KEY) dans le .env de l’API.';
-  else $('ai-quota').textContent = `${st.limit - st.used} génération${st.limit - st.used > 1 ? 's' : ''} restante${st.limit - st.used > 1 ? 's' : ''} aujourd’hui.`;
-  $('ai-file').accept = st.pdf ? '.pdf,.pptx,.docx,.txt,.md,application/pdf,text/plain' : '.pptx,.docx,.txt,.md,text/plain';
+  else $('ai-quota').textContent = quotaText(st);
+  // Le texte des PDF est extrait dans le navigateur : toutes les IA s'en servent. Seuls les PDF
+  // scannés (sans texte) demandent une IA qui lit les PDF.
+  $('ai-file').accept = '.pdf,.pptx,.docx,.txt,.md,application/pdf,text/plain';
   $('ai-file-hint').textContent = st.pdf
-    ? 'PowerPoint (.pptx), Word (.docx), PDF (12 Mo max), texte. Les anciens .ppt/.doc doivent être enregistrés au format récent.'
-    : 'PowerPoint (.pptx), Word (.docx), texte. Ce fournisseur d’IA ne lit pas les PDF : copie-colle leur texte.';
+    ? 'PowerPoint (.pptx), Word (.docx), PDF, texte. Les anciens .ppt/.doc doivent être enregistrés au format récent.'
+    : 'PowerPoint (.pptx), Word (.docx), PDF avec du texte (pas les PDF scannés), texte. Les anciens .ppt/.doc doivent être enregistrés au format récent.';
   await fillFolders(folderId);
   refreshIcons();
 }
@@ -91,11 +120,10 @@ export function initAi() {
     if (!file) return;
     $('ai-file-label').textContent = 'Lecture…';
     try {
-      if (file.name.toLowerCase().endsWith('.pdf') && !status?.pdf) throw new Error('Ce fournisseur d’IA ne lit pas les PDF : colle le texte du cours.');
-      const res = await extractCourse(file);
+      const res = await extractCourse(file, { pdfFallback: Boolean(status?.pdf) });
       source = { text: res.text ?? '', pdf: res.pdf ?? null, label: file.name };
       if (res.text !== undefined && !res.text.trim()) throw new Error('Aucun texte trouvé dans ce fichier.');
-      $('ai-file-label').textContent = res.pdf ? `${file.name} (PDF, envoyé tel quel)` : `${file.name} — ${res.text.length.toLocaleString('fr-FR')} caractères extraits`;
+      $('ai-file-label').textContent = res.pdf ? `${file.name} (PDF scanné, envoyé tel quel)` : `${file.name} — ${res.text.length.toLocaleString('fr-FR')} caractères extraits`;
       if (res.text && !$('ai-text').value.trim()) $('ai-text').placeholder = 'Le texte du fichier sera utilisé. Tu peux aussi coller ici des compléments.';
     } catch (err) {
       source = { text: '', pdf: null, label: '' };
@@ -119,18 +147,46 @@ export function initAi() {
     const btn = $('ai-generate');
     setLoading(btn, true);
     $('ai-progress').hidden = false;
+    const title = $('ai-title').value.trim();
+    const count = Number($('ai-count').value);
+    const progress = $('ai-progress-text');
+    const progressDefault = progress.textContent;
+    // Long cours et IA lente : une partie après l'autre, le nombre de questions réparti selon la longueur.
+    const parts = !source.pdf && status?.chunk && text.length > status.chunk * 1.15 ? splitCourse(text, status.chunk) : [text];
+    generated = [];
+    let failed = null;
     try {
-      const res = await post('ai', 'generate', { text, pdf: source.pdf, title: $('ai-title').value.trim(), count: Number($('ai-count').value) });
-      status = { ...status, used: res.used, limit: res.limit };
-      generated = res.cards;
-      status = { ...status, enabled: true, used: res.used, limit: res.limit };
-      $('ai-quota').textContent = `${res.limit - res.used} génération${res.limit - res.used > 1 ? 's' : ''} restante${res.limit - res.used > 1 ? 's' : ''} aujourd’hui.`;
-      renderCards();
-      $('ai-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch (err) {
-      error.textContent = errorText(err, 'Génération impossible.');
-      error.hidden = false;
+      for (const [i, part] of parts.entries()) {
+        if (parts.length > 1) {
+          const left = Math.ceil((parts.length - i) * 2.5);
+          progress.textContent = `Cours long : partie ${i + 1} sur ${parts.length}, ${plural(generated.length, 'carte')} pour l’instant… (encore ~${left} minutes, garde cette page ouverte)`;
+        }
+        const n = parts.length > 1 ? Math.max(3, Math.round((count * part.length) / text.length)) : count;
+        try {
+          const res = await post('ai', 'generate', { text: part, pdf: parts.length > 1 ? null : source.pdf, title: parts.length > 1 ? `${title || source.label} (partie ${i + 1}/${parts.length})` : title, count: n });
+          status = { ...status, enabled: true, used: res.used, limit: res.limit };
+          $('ai-quota').textContent = quotaText(status);
+          const seen = new Set(generated.map((c) => c.front.toLowerCase()));
+          generated.push(...res.cards.filter((c) => !seen.has(c.front.toLowerCase())));
+          if (parts.length > 1) renderCards();
+        } catch (err) {
+          // Une partie ratée : on garde les cartes déjà obtenues.
+          failed = err;
+          if (!generated.length || (err instanceof ApiError && err.status === 429)) break;
+        }
+      }
+      if (failed) {
+        error.textContent = generated.length
+          ? `Une partie du cours n’a pas pu être traitée (${errorText(failed, 'erreur')}) : voici les cartes obtenues pour le reste.`
+          : errorText(failed, 'Génération impossible.');
+        error.hidden = false;
+      }
+      if (generated.length) {
+        renderCards();
+        $('ai-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     } finally {
+      progress.textContent = progressDefault;
       setLoading(btn, false);
       $('ai-progress').hidden = true;
     }

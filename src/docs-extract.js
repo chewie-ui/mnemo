@@ -1,6 +1,7 @@
 // Lecture d'un fichier de cours dans le navigateur : texte brut, PowerPoint (.pptx) et Word (.docx)
-// sont ouverts ici (ce sont des zips de XML) pour n'envoyer que le texte ; un PDF part tel quel,
-// l'IA sait le lire. Aucune dépendance : décompression par DecompressionStream.
+// sont ouverts ici (ce sont des zips de XML, décompressés par DecompressionStream), et le texte des
+// PDF est extrait par pdf.js : seul le texte est envoyé, ce que toutes les IA savent lire (y compris
+// une IA auto-hébergée). Un PDF scanné, sans texte, part tel quel vers une IA qui lit les PDF.
 
 const decoder = new TextDecoder();
 
@@ -84,10 +85,50 @@ export async function extractDocx(buf) {
   return officeText(await readEntry(buf, entry), 'w:t', 'w:p');
 }
 
-// { text } pour les formats texte/Office, { pdf } (base64) pour un PDF.
-export async function extractCourse(file) {
+// Texte d'un PDF, lu dans le navigateur avec pdf.js (chargé seulement quand on choisit un PDF).
+// Vide pour un PDF scanné (des images de pages, sans texte).
+export async function extractPdf(buf) {
+  const [pdfjs, { default: workerUrl }] = await Promise.all([
+    import('pdfjs-dist'),
+    import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+  ]);
+  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+  const task = pdfjs.getDocument({ data: new Uint8Array(buf) });
+  const doc = await task.promise;
+  const pages = [];
+  for (let n = 1; n <= doc.numPages; n++) {
+    const page = await doc.getPage(n);
+    const { items } = await page.getTextContent();
+    let text = '';
+    for (const it of items) text += it.str + (it.hasEOL ? '\n' : '');
+    text = text.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+    if (text) pages.push(`## Page ${n}\n${text}`);
+    page.cleanup();
+  }
+  const count = doc.numPages;
+  await task.destroy();
+  return { text: pages.join('\n\n'), pages: count };
+}
+
+// { text } pour les formats texte/Office et les PDF dont on sait lire le texte ;
+// { pdf } (base64) pour un PDF scanné, que seule une IA capable de lire les PDF comprendra.
+export async function extractCourse(file, { pdfFallback = true } = {}) {
   const name = file.name.toLowerCase();
   if (name.endsWith('.pdf') || file.type === 'application/pdf') {
+    let scanned = true;
+    try {
+      const { text, pages } = await extractPdf(await file.arrayBuffer());
+      // Moins de ~80 caractères par page : des images avec, au mieux, quelques légendes.
+      scanned = text.replace(/## Page \d+/g, '').trim().length < Math.max(200, pages * 80);
+      if (!scanned) return { text };
+    } catch (err) {
+      console.warn('pdf.js :', err);
+    }
+    if (!pdfFallback) {
+      throw new Error(scanned
+        ? 'Ce PDF semble scanné (des images de pages, sans texte à lire) : copie-colle son contenu ou utilise un PDF avec du texte sélectionnable.'
+        : 'PDF illisible : copie-colle son contenu.');
+    }
     if (file.size > 12 * 1024 * 1024) throw new Error('PDF trop lourd (12 Mo maximum) : exporte-le en plus léger ou copie le texte.');
     const b64 = await new Promise((resolve, reject) => {
       const r = new FileReader();

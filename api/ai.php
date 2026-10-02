@@ -62,6 +62,9 @@ function aiConfig(): array {
   return [
     'chain' => $chain,
     'limit' => max(1, (int) $env('AI_DAILY_LIMIT', '30')),
+    // IA lente (auto-hébergée sans carte graphique) : au-delà de ce nombre de caractères, le
+    // navigateur découpe le cours en parties envoyées l'une après l'autre. 0 = jamais.
+    'chunk' => max(0, (int) $env('AI_CHUNK_TEXT', '0')),
   ];
 }
 
@@ -143,7 +146,9 @@ function httpOnce(array $cfg, string $url, array $headers, array $payload): arra
     $err = curl_error($ch);
     curl_close($ch);
     error_log("ai: curl error: $err");
-    fail(502, 'Impossible de joindre l’IA pour le moment.');
+    // Serveur injoignable ou trop lent (IA auto-hébergée en panne, par exemple) : on passe au
+    // fournisseur suivant de la chaîne plutôt que d'échouer tout de suite.
+    throw new AiUnavailable('Impossible de joindre l’IA pour le moment.');
   }
   $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
   curl_close($ch);
@@ -338,6 +343,7 @@ switch (action()) {
       'pdf' => (bool) array_filter($cfg['chain'], fn($c) => $c['pdf']),
       'limit' => $cfg['limit'],
       'used' => usedToday($uid),
+      'chunk' => $cfg['chunk'],
     ]);
   }
 
