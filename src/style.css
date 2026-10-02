@@ -2144,6 +2144,15 @@ p {
 }
 
 /* ─── Cartes de leçon (liste) ─── */
+/* Titre, description, infos, boutons : quatre lignes au lieu des trois de la sous-grille des
+   cartes de région, sinon la quatrième s'empile par-dessus la troisième. */
+.deck-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  grid-row: auto;
+}
+
 .deck-card .desc {
   color: var(--text-muted);
   font-size: 14px;
@@ -2151,7 +2160,8 @@ p {
 
 .deck-meta {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 4px 12px;
   font-size: 14px;
   color: var(--text-muted);
 }
@@ -2165,7 +2175,8 @@ p {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 4px;
+  margin-top: auto;
+  padding-top: 4px;
 }
 
 .deck-card .actions .btn {
