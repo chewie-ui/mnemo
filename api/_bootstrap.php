@@ -69,6 +69,11 @@ function db(): PDO {
   static $pdo = null;
   if ($pdo) return $pdo;
   $config = config();
+  // api/data/ n'est pas versionné : sur un clone neuf, SQLite ne pourrait pas y créer la base.
+  if (str_starts_with($config['dsn'], 'sqlite:')) {
+    $dir = dirname(substr($config['dsn'], 7));
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+  }
   try {
     $pdo = new PDO($config['dsn'], $config['user'], $config['password'], [
       PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,

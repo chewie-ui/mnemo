@@ -129,6 +129,11 @@ function httpOnce(array $cfg, string $url, array $headers, array $payload): arra
     CURLOPT_POST => true,
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_TIMEOUT => 240,
+    // Une IA auto-hébergée peut réfléchir une minute sans rien envoyer : sans ces sondes, certains
+    // réseaux (partage de connexion, box, pare-feu) coupent la connexion « inactive » en silence.
+    CURLOPT_TCP_KEEPALIVE => 1,
+    CURLOPT_TCP_KEEPIDLE => 15,
+    CURLOPT_TCP_KEEPINTVL => 10,
     CURLOPT_HTTPHEADER => array_merge(['Content-Type: application/json'], $headers),
     CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
   ]);
