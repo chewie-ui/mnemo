@@ -1,0 +1,12 @@
+# Cache navigateur (Apache, Infomaniak). Sans consigne, Safari et l'app ajoutée à l'écran d'accueil
+# gardaient d'anciennes versions de la page : une mise à jour du site n'arrivait pas sur le téléphone.
+<IfModule mod_headers.c>
+  # La page et le manifeste : toujours revalidés (réponse « 304 » très légère si rien n'a changé).
+  <FilesMatch "^(index\.html|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  # Fichiers construits : leur nom change à chaque version, ils peuvent rester en cache longtemps.
+  <If "%{REQUEST_URI} =~ m#^/assets/#">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </If>
+</IfModule>
