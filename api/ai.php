@@ -355,7 +355,7 @@ switch (action()) {
     $in = input();
     $text = trim((string) ($in['text'] ?? ''));
     $title = text($in['title'] ?? '', 120);
-    $count = max(3, min(40, (int) ($in['count'] ?? 15)));
+    $count = max(3, min(100, (int) ($in['count'] ?? 15)));
     $pdf = (string) ($in['pdf'] ?? '');
     if (mb_strlen($text) > AI_MAX_TEXT) fail(422, 'Cours trop long (' . AI_MAX_TEXT . ' caractères maximum) : découpe-le en plusieurs leçons.');
     if ($pdf !== '') {

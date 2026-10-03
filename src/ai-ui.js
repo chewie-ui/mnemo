@@ -51,6 +51,10 @@ export function splitCourse(text, max) {
   return parts;
 }
 
+// IA lente (auto-hébergée) : questions visées par partie, et plafond pour tenir dans le temps imparti.
+const PER_PART = 15;
+const MAX_PER_PART = 20;
+
 const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
 const quotaText = (st) => `${st.limit - st.used} génération${st.limit - st.used > 1 ? 's' : ''} restante${st.limit - st.used > 1 ? 's' : ''} aujourd’hui.`;
 
@@ -151,17 +155,24 @@ export function initAi() {
     const count = Number($('ai-count').value);
     const progress = $('ai-progress-text');
     const progressDefault = progress.textContent;
-    // Long cours et IA lente : une partie après l'autre, le nombre de questions réparti selon la longueur.
-    const parts = !source.pdf && status?.chunk && text.length > status.chunk * 1.15 ? splitCourse(text, status.chunk) : [text];
+    // IA lente : une partie du cours après l'autre, le nombre de questions réparti selon la longueur.
+    // On découpe quand le cours est long, ou quand on demande beaucoup de questions (une IA lente
+    // n'en rédige qu'une quinzaine dans le temps imparti), sans descendre sous ~1500 caractères par
+    // partie pour qu'elle ait encore de quoi poser des questions.
+    let parts = [text];
+    if (!source.pdf && status?.chunk) {
+      const wanted = Math.max(Math.ceil(text.length / status.chunk), Math.min(Math.ceil(count / PER_PART), Math.floor(text.length / 1500)));
+      if (wanted > 1) parts = splitCourse(text, Math.min(status.chunk, Math.ceil(text.length / wanted) + 200));
+    }
     generated = [];
     let failed = null;
     try {
       for (const [i, part] of parts.entries()) {
         if (parts.length > 1) {
           const left = Math.ceil((parts.length - i) * 2.5);
-          progress.textContent = `Cours long : partie ${i + 1} sur ${parts.length}, ${plural(generated.length, 'carte')} pour l’instant… (encore ~${left} minutes, garde cette page ouverte)`;
+          progress.textContent = `Génération en plusieurs fois : partie ${i + 1} sur ${parts.length}, ${plural(generated.length, 'carte')} pour l’instant… (encore ~${left} minutes, garde cette page ouverte)`;
         }
-        const n = parts.length > 1 ? Math.max(3, Math.round((count * part.length) / text.length)) : count;
+        const n = parts.length > 1 ? Math.min(MAX_PER_PART, Math.max(3, Math.round((count * part.length) / text.length))) : status?.chunk ? Math.min(MAX_PER_PART, count) : count;
         try {
           const res = await post('ai', 'generate', { text: part, pdf: parts.length > 1 ? null : source.pdf, title: parts.length > 1 ? `${title || source.label} (partie ${i + 1}/${parts.length})` : title, count: n });
           status = { ...status, enabled: true, used: res.used, limit: res.limit };
